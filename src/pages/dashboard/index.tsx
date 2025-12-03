@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../lib/auth-context';
-import { Plus, ArrowRight, Building2, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { Plus, Search, Clock, CheckCircle, XCircle, ArrowRight, TrendingUp, Building2, Bell, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useTheme } from '@/lib/theme-context';
+import { useAuth } from '@/lib/auth-context';
 
 interface Analysis {
   id: string;
@@ -18,29 +21,58 @@ interface Analysis {
   };
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-function getStatusInfo(status: string) {
-  switch (status) {
-    case 'COMPLETED':
-      return { label: 'Completed', icon: CheckCircle, color: 'text-green-600' };
-    case 'FAILED':
-    case 'CANCELLED':
-      return { label: 'Failed', icon: XCircle, color: 'text-red-600' };
-    default:
-      return { label: 'In Progress', icon: Loader2, color: 'text-primary' };
-  }
+const getStatusColors = (isDark: boolean) => ({
+  PENDING: isDark
+    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+    : 'bg-[#8B7355]/20 text-[#8B7355] border-[#8B7355]/30',
+  COMPLETED: isDark
+    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+    : 'bg-[#5C4A2A]/10 text-[#5C4A2A] border-[#5C4A2A]/20',
+  FAILED: isDark
+    ? 'bg-red-500/20 text-red-400 border-red-500/30'
+    : 'bg-red-100/80 text-red-700 border-red-200',
+  CANCELLED: isDark
+    ? 'bg-white/10 text-white/40 border-white/10'
+    : 'bg-[#ebe3d3] text-[#5C4A2A]/60 border-[#5C4A2A]/10',
+});
+
+const statusIcons = {
+  PENDING: Clock,
+  COMPLETED: CheckCircle,
+  FAILED: XCircle,
+  CANCELLED: XCircle,
+};
+
+type StatusCategory = 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
+function getStatusCategory(status: string): StatusCategory {
+  if (['COMPLETED'].includes(status)) return 'COMPLETED';
+  if (['FAILED', 'CANCELLED'].includes(status)) return 'FAILED';
+  return 'PENDING';
 }
 
 export default function DashboardPage() {
+  const { theme } = useTheme();
   const { user } = useAuth();
+  const isDark = theme === 'dark';
+  const statusColors = getStatusColors(isDark);
+
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    monthlyUsed: 0,
+    monthlyLimit: 5,
+    companies: 0,
+    monitors: 0,
+    tier: 'Free'
+  });
 
   useEffect(() => {
     async function fetchAnalyses() {
       try {
-        const res = await fetch(`${API_URL}/api/analysis?limit=10`, {
+        const res = await fetch(`${API_URL}/api/analysis?limit=5`, {
           credentials: 'include',
         });
         if (res.ok) {
@@ -56,139 +88,245 @@ export default function DashboardPage() {
     fetchAnalyses();
   }, []);
 
-  const inProgressAnalyses = analyses.filter(
-    (a) => !['COMPLETED', 'FAILED', 'CANCELLED'].includes(a.status)
-  );
-  const completedAnalyses = analyses.filter((a) => a.status === 'COMPLETED');
-
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Welcome back, {user?.name?.split(' ')[0]}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Here's an overview of your competitive intelligence
-          </p>
-        </div>
-        <Link
-          to="/dashboard/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90"
-        >
-          <Plus size={20} />
-          New Analysis
-        </Link>
-      </div>
+      {/* Welcome Section with Glassmorphism */}
+      <div className={`relative overflow-hidden rounded-3xl p-8 backdrop-blur-2xl border shadow-2xl transition-colors duration-500 ${
+        isDark
+          ? 'bg-gradient-to-br from-white/10 via-white/5 to-white/[0.02] border-white/10'
+          : 'bg-gradient-to-br from-white/70 via-white/50 to-white/30 border-white/40'
+      }`}>
+        {/* Decorative gradient orbs */}
+        {isDark ? (
+          <>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-500/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-gradient-to-tr from-purple-500/15 to-transparent rounded-full blur-2xl translate-y-1/2" />
+          </>
+        ) : (
+          <>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#d4c4a8]/40 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-gradient-to-tr from-[#c9b896]/30 to-transparent rounded-full blur-2xl translate-y-1/2" />
+          </>
+        )}
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-xl p-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Clock className="text-primary" size={20} />
+        <div className="relative flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`h-2 w-2 rounded-full animate-pulse ${
+                isDark ? 'bg-gradient-to-r from-cyan-400 to-purple-400' : 'bg-gradient-to-r from-[#8B7355] to-[#5C4A2A]'
+              }`} />
+              <span className={`text-sm font-medium tracking-widest uppercase ${isDark ? 'text-cyan-400' : 'text-[#8B7355]'}`}>Dashboard</span>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{inProgressAnalyses.length}</p>
-              <p className="text-sm text-muted-foreground">In Progress</p>
-            </div>
+            <h1 className={`text-3xl font-light tracking-wide ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+              Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+            </h1>
+            <p className={`mt-1 font-light ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/60'}`}>
+              Start a new analysis or review your recent research.
+            </p>
           </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-              <CheckCircle className="text-green-600" size={20} />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{completedAnalyses.length}</p>
-              <p className="text-sm text-muted-foreground">Completed</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <Building2 className="text-blue-600" size={20} />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{analyses.length}</p>
-              <p className="text-sm text-muted-foreground">Total Analyses</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent analyses */}
-      <div className="bg-card border border-border rounded-xl">
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Recent Analyses</h2>
-          <Link
-            to="/dashboard/companies"
-            className="text-sm text-primary hover:underline flex items-center gap-1"
-          >
-            View all
-            <ArrowRight size={14} />
+          <Link to="/dashboard/new">
+            <Button className={`gap-2 rounded-2xl px-6 py-5 shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] ${
+              isDark
+                ? 'bg-white/10 text-white border border-white/20 hover:bg-white/15 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/20 backdrop-blur-sm'
+                : 'bg-gradient-to-r from-[#5C4A2A] to-[#8B7355] text-white hover:from-[#4a3a21] hover:to-[#7a6348] shadow-[#5C4A2A]/20 hover:shadow-[#5C4A2A]/30'
+            }`}>
+              <Plus className="h-4 w-4" />
+              <span className="tracking-wide">New Analysis</span>
+            </Button>
           </Link>
         </div>
+      </div>
 
-        {loading ? (
-          <div className="p-8 text-center">
-            <Loader2 className="animate-spin mx-auto text-muted-foreground" size={24} />
+      {/* Stats Cards with Liquid Glass Effect */}
+      <div className="grid gap-5 md:grid-cols-4">
+        {[
+          { label: 'Monthly Analyses', value: stats.monthlyUsed, max: stats.monthlyLimit, icon: TrendingUp, gradient: isDark ? 'from-cyan-500/20 to-purple-500/10' : 'from-[#8B7355]/20 to-[#5C4A2A]/10' },
+          { label: 'Companies', value: stats.companies, icon: Building2, gradient: isDark ? 'from-emerald-500/20 to-cyan-500/10' : 'from-[#5C4A2A]/15 to-[#8B7355]/10' },
+          { label: 'Active Monitors', value: stats.monitors, icon: Bell, gradient: isDark ? 'from-purple-500/20 to-pink-500/10' : 'from-[#c9b896]/30 to-[#8B7355]/15' },
+          { label: 'Subscription', value: stats.tier, icon: Sparkles, gradient: isDark ? 'from-pink-500/20 to-cyan-500/10' : 'from-[#d4c4a8]/30 to-[#c9b896]/20' },
+        ].map((stat, i) => (
+          <div
+            key={i}
+            className={`group relative overflow-hidden rounded-2xl p-5 backdrop-blur-2xl border shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-[1.03] ${
+              isDark
+                ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                : 'bg-white/60 border-white/50 hover:bg-white/70'
+            }`}
+          >
+            {/* Animated gradient background */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <span className={`text-xs font-medium tracking-widest uppercase ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>
+                  {stat.label}
+                </span>
+                <stat.icon className={`h-4 w-4 ${isDark ? 'text-cyan-400/60' : 'text-[#8B7355]/60'}`} />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-3xl font-light tracking-tight ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+                  {typeof stat.value === 'string' ? stat.value : stat.value}
+                </span>
+                {stat.max && (
+                  <span className={`text-lg font-light ${isDark ? 'text-white/40' : 'text-[#5C4A2A]/40'}`}>/{stat.max}</span>
+                )}
+              </div>
+            </div>
           </div>
-        ) : analyses.length === 0 ? (
-          <div className="p-8 text-center">
-            <Building2 className="mx-auto text-muted-foreground mb-3" size={40} />
-            <p className="text-muted-foreground">No analyses yet</p>
-            <Link
-              to="/dashboard/new"
-              className="inline-flex items-center gap-2 mt-4 text-primary hover:underline"
+        ))}
+      </div>
+
+      {/* Quick Start - Floating Glass Card */}
+      <div className={`relative overflow-hidden rounded-3xl p-6 backdrop-blur-2xl border shadow-xl hover:shadow-2xl transition-all duration-500 ${
+        isDark
+          ? 'bg-gradient-to-r from-white/10 via-white/5 to-white/[0.02] border-white/10'
+          : 'bg-gradient-to-r from-white/70 via-white/50 to-white/30 border-white/40'
+      }`}>
+        <div className={`absolute inset-0 bg-gradient-to-r ${
+          isDark ? 'from-cyan-500/5 via-transparent to-purple-500/5' : 'from-[#d4c4a8]/10 via-transparent to-[#c9b896]/10'
+        }`} />
+
+        <div className="relative flex items-center gap-6">
+          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${
+            isDark
+              ? 'bg-gradient-to-br from-cyan-500/20 to-purple-500/10 border-cyan-500/20'
+              : 'bg-gradient-to-br from-[#5C4A2A]/10 to-[#8B7355]/10 border-[#5C4A2A]/10'
+          }`}>
+            <Search className={`h-6 w-6 ${isDark ? 'text-cyan-400' : 'text-[#5C4A2A]'}`} />
+          </div>
+          <div className="flex-1">
+            <h3 className={`font-medium tracking-wide text-lg ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>Start a new analysis</h3>
+            <p className={`text-sm font-light mt-0.5 ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/60'}`}>
+              Enter a company URL to generate a comprehensive sales brief in minutes.
+            </p>
+          </div>
+          <Link to="/dashboard/new">
+            <Button
+              variant="outline"
+              className={`gap-2 rounded-2xl px-5 py-5 transition-all hover:scale-[1.02] ${
+                isDark
+                  ? 'border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/50'
+                  : 'border-[#5C4A2A]/20 text-[#5C4A2A] hover:bg-[#5C4A2A]/5 hover:border-[#5C4A2A]/30'
+              }`}
             >
-              <Plus size={16} />
-              Start your first analysis
+              <span className="tracking-wide">Get Started</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Recent Analyses - Premium Glass Card */}
+      <div className={`relative overflow-hidden rounded-3xl backdrop-blur-2xl border shadow-xl transition-colors duration-500 ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40'
+      }`}>
+        {/* Subtle decorative elements */}
+        <div className={`absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 ${
+          isDark ? 'bg-gradient-to-bl from-cyan-500/10 to-transparent' : 'bg-gradient-to-bl from-[#d4c4a8]/20 to-transparent'
+        }`} />
+
+        <div className="relative">
+          <div className={`flex items-center justify-between p-6 pb-4 border-b transition-colors duration-500 ${
+            isDark ? 'border-white/5' : 'border-[#5C4A2A]/5'
+          }`}>
+            <div>
+              <h2 className={`text-lg font-medium tracking-wide ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>Recent Analyses</h2>
+              <p className={`text-sm font-light ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Your most recent company research</p>
+            </div>
+            <Link to="/dashboard/companies">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`rounded-xl ${
+                  isDark ? 'text-cyan-400 hover:text-cyan-300 hover:bg-white/5' : 'text-[#8B7355] hover:text-[#5C4A2A] hover:bg-[#5C4A2A]/5'
+                }`}
+              >
+                View all
+              </Button>
             </Link>
           </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {analyses.slice(0, 5).map((analysis) => {
-              const statusInfo = getStatusInfo(analysis.status);
-              return (
-                <Link
-                  key={analysis.id}
-                  to={`/dashboard/analysis/${analysis.id}`}
-                  className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-bold text-primary">
-                        {analysis.company.name.charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{analysis.company.name}</p>
-                      <p className="text-sm text-muted-foreground">{analysis.company.domain}</p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className={cn('flex items-center gap-1.5', statusInfo.color)}>
-                      <statusInfo.icon
-                        size={16}
-                        className={
-                          statusInfo.label === 'In Progress' ? 'animate-spin' : undefined
-                        }
-                      />
-                      <span className="text-sm font-medium">{statusInfo.label}</span>
+          <div className="p-6 pt-2">
+            {loading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className={`flex items-center gap-4 py-4 px-4 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-white/30'}`}>
+                    <Skeleton className={`h-12 w-12 rounded-2xl ${isDark ? 'bg-white/10' : 'bg-[#5C4A2A]/10'}`} />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className={`h-4 w-48 rounded-lg ${isDark ? 'bg-white/10' : 'bg-[#5C4A2A]/10'}`} />
+                      <Skeleton className={`h-3 w-32 rounded-lg ${isDark ? 'bg-white/10' : 'bg-[#5C4A2A]/10'}`} />
                     </div>
-                    <ArrowRight size={16} className="text-muted-foreground" />
+                    <Skeleton className={`h-7 w-24 rounded-xl ${isDark ? 'bg-white/10' : 'bg-[#5C4A2A]/10'}`} />
                   </div>
+                ))}
+              </div>
+            ) : analyses.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className={`flex h-16 w-16 items-center justify-center rounded-2xl mx-auto mb-4 ${
+                  isDark ? 'bg-gradient-to-br from-cyan-500/20 to-purple-500/10' : 'bg-gradient-to-br from-[#5C4A2A]/10 to-[#8B7355]/10'
+                }`}>
+                  <Search className={`h-7 w-7 ${isDark ? 'text-cyan-400/40' : 'text-[#5C4A2A]/40'}`} />
+                </div>
+                <p className={`font-light ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>No analyses yet. Start your first one!</p>
+                <Link to="/dashboard/new">
+                  <Button className={`mt-5 rounded-2xl px-6 shadow-lg ${
+                    isDark
+                      ? 'bg-white/10 text-white border border-white/20 hover:bg-white/15 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/20 backdrop-blur-sm'
+                      : 'bg-gradient-to-r from-[#5C4A2A] to-[#8B7355] text-white hover:from-[#4a3a21] hover:to-[#7a6348]'
+                  }`}>
+                    Create Analysis
+                  </Button>
                 </Link>
-              );
-            })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {analyses.map((analysis) => {
+                  const statusCategory = getStatusCategory(analysis.status);
+                  const StatusIcon = statusIcons[statusCategory];
+                  return (
+                    <Link
+                      key={analysis.id}
+                      to={`/dashboard/analysis/${analysis.id}`}
+                      className={`group flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-300 ${
+                        isDark ? 'hover:bg-white/5 hover:shadow-lg' : 'hover:bg-white/60 hover:shadow-lg'
+                      }`}
+                    >
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl border group-hover:scale-105 transition-transform ${
+                        isDark
+                          ? 'bg-gradient-to-br from-cyan-500/20 to-purple-500/10 border-cyan-500/20'
+                          : 'bg-gradient-to-br from-[#5C4A2A]/10 to-[#8B7355]/10 border-[#5C4A2A]/10'
+                      }`}>
+                        <span className={`text-lg font-medium ${isDark ? 'text-cyan-400' : 'text-[#5C4A2A]'}`}>
+                          {analysis.company.name[0]}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium truncate tracking-wide transition-colors ${
+                          isDark ? 'text-white group-hover:text-cyan-400' : 'text-[#3D3124] group-hover:text-[#5C4A2A]'
+                        }`}>
+                          {analysis.company.name}
+                        </p>
+                        <p className={`text-sm truncate font-light ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>
+                          {analysis.company.domain}
+                        </p>
+                      </div>
+                      <Badge className={`${statusColors[statusCategory]} rounded-xl px-3 py-1 font-medium border backdrop-blur-sm`}>
+                        <StatusIcon className="mr-1.5 h-3 w-3" />
+                        {statusCategory === 'PENDING' ? 'In Progress' : statusCategory}
+                      </Badge>
+                      <span className={`text-sm font-light ${isDark ? 'text-white/40' : 'text-[#5C4A2A]/40'}`}>
+                        {new Date(analysis.createdAt).toLocaleDateString()}
+                      </span>
+                      <ArrowRight className={`h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all ${
+                        isDark ? 'text-cyan-400/50' : 'text-[#5C4A2A]/30'
+                      }`} />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

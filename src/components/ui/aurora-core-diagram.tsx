@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Cpu, Box, Search, Users, Bell, Database, Shield, Network, Terminal, FileCode, Heart, Play, Pause } from 'lucide-react';
-import { useTheme } from '../../lib/theme-context';
+import { useTheme } from '@/lib/theme-context';
 
 // --- Types ---
 interface NodeConfig {
@@ -22,9 +22,11 @@ interface ConnectionConfig {
 }
 
 // --- Aurora Core Diagram Data (scaled to fit card width) ---
+// Original diagram spans x: 111 to 1287 (~1176px) and y: 117 to 785 (~668px)
+// Scale down to ensure all elements fit within the container
 const SCALE = 0.72;
-const OFFSET_X = 160;
-const OFFSET_Y = -30;
+const OFFSET_X = 160;  // Shift right to center diagram (even spacing left/right)
+const OFFSET_Y = -30;  // Shift up less to show bottom elements
 
 const scaleNode = (node: NodeConfig): NodeConfig => ({
   ...node,
@@ -51,6 +53,7 @@ const BASE_NODES: NodeConfig[] = [
 
 const AURORA_NODES = BASE_NODES.map(scaleNode);
 
+// Connections with both Aurora and Vibrant colors for blending (light and dark modes)
 interface ConnectionWithColors extends ConnectionConfig {
   auroraColorLight: string;
   auroraColorDark: string;
@@ -124,7 +127,7 @@ const lerpColor = (color1: string, color2: string, t: number) => {
   );
 };
 
-// Aurora brand colors - Light mode
+// Aurora brand colors - Light mode (warm browns/tans)
 const AURORA_COLORS_LIGHT = {
   blue: { bg: '#5C4A2A', border: '#d4c4a8', text: '#F5EFE4' },
   gateway: { bg: '#3D3124', border: '#8B7355', text: '#d4c4a8' },
@@ -134,7 +137,7 @@ const AURORA_COLORS_LIGHT = {
   group: { bg: '#3D3124', border: '#8B7355', text: '#d4c4a8' },
 };
 
-// Aurora brand colors - Dark mode
+// Aurora brand colors - Dark mode (cyan/purple aurora borealis)
 const AURORA_COLORS_DARK = {
   blue: { bg: '#0c1929', border: '#22d3ee', text: '#e0f7fa' },
   gateway: { bg: '#0a1628', border: '#a855f7', text: '#e9d5ff' },
@@ -154,7 +157,7 @@ const VIBRANT_COLORS_LIGHT = {
   group: { bg: '#0f172a', border: '#f97316', text: '#fed7aa' },
 };
 
-// Vibrant colors - Dark mode
+// Vibrant colors - Dark mode (grayscale/monochrome for "no color" effect)
 const VIBRANT_COLORS_DARK = {
   blue: { bg: '#1a1a1a', border: '#666666', text: '#e5e5e5' },
   gateway: { bg: '#141414', border: '#555555', text: '#d4d4d4' },
@@ -181,27 +184,27 @@ const getNodeStyle = (type: string, colorBlend: number, isDark: boolean) => {
   switch (type) {
     case 'blue': {
       const c = getBlendedStyle('blue');
-      return { className: "rounded-lg", style: { backgroundColor: `${c.bg}cc`, borderColor: `${c.border}99`, color: c.text, borderWidth: '1px', borderStyle: 'solid' as const } };
+      return { className: "rounded-lg", style: { backgroundColor: `${c.bg}cc`, borderColor: `${c.border}99`, color: c.text, borderWidth: '1px', borderStyle: 'solid' } };
     }
     case 'gateway': {
       const c = getBlendedStyle('gateway');
-      return { className: "rounded-lg", style: { backgroundColor: `${c.bg}e6`, borderColor: c.border, color: c.text, borderWidth: '2px', borderStyle: 'solid' as const } };
+      return { className: "rounded-lg", style: { backgroundColor: `${c.bg}e6`, borderColor: c.border, color: c.text, borderWidth: '2px', borderStyle: 'solid' } };
     }
     case 'service-green': {
       const c = getBlendedStyle('serviceGreen');
-      return { className: "rounded-md", style: { backgroundColor: `${c.bg}99`, borderColor: `${c.border}cc`, color: c.text, borderWidth: '1px', borderStyle: 'solid' as const } };
+      return { className: "rounded-md", style: { backgroundColor: `${c.bg}99`, borderColor: `${c.border}cc`, color: c.text, borderWidth: '1px', borderStyle: 'solid' } };
     }
     case 'service-yellow': {
       const c = getBlendedStyle('serviceYellow');
-      return { className: "rounded-md", style: { backgroundColor: `${c.bg}80`, borderColor: `${c.border}b3`, color: c.text, borderWidth: '1px', borderStyle: 'solid' as const } };
+      return { className: "rounded-md", style: { backgroundColor: `${c.bg}80`, borderColor: `${c.border}b3`, color: c.text, borderWidth: '1px', borderStyle: 'solid' } };
     }
     case 'red': {
       const c = getBlendedStyle('red');
-      return { className: "rounded-lg", style: { backgroundColor: c.bg, borderColor: c.border, color: c.text, borderWidth: '1px', borderStyle: 'solid' as const } };
+      return { className: "rounded-lg", style: { backgroundColor: c.bg, borderColor: c.border, color: c.text, borderWidth: '1px', borderStyle: 'solid' } };
     }
     case 'group': {
       const c = getBlendedStyle('group');
-      return { className: "rounded-xl", style: { backgroundColor: `${c.bg}4d`, borderColor: `${c.border}66`, color: c.text, borderWidth: '1px', borderStyle: 'solid' as const } };
+      return { className: "rounded-xl", style: { backgroundColor: `${c.bg}4d`, borderColor: `${c.border}66`, color: c.text, borderWidth: '1px', borderStyle: 'solid' } };
     }
     default:
       return { className: "", style: { backgroundColor: '#5C4A2A80', borderColor: '#8B7355' } };
@@ -213,13 +216,13 @@ const getSmartConnectionPoints = (fromNode: NodeConfig, toNode: NodeConfig) => {
   const dx = toNode.x - fromNode.x;
   const dy = toNode.y - fromNode.y;
 
-  const fromRight = fromNode.x + fromNode.w / 2;
   const fromLeft = fromNode.x - fromNode.w / 2;
+  const fromRight = fromNode.x + fromNode.w / 2;
   const fromTop = fromNode.y - fromNode.h / 2;
   const fromBottom = fromNode.y + fromNode.h / 2;
 
-  const toRight = toNode.x + toNode.w / 2;
   const toLeft = toNode.x - toNode.w / 2;
+  const toRight = toNode.x + toNode.w / 2;
   const toTop = toNode.y - toNode.h / 2;
   const toBottom = toNode.y + toNode.h / 2;
 
@@ -343,14 +346,19 @@ const ConnectionLine = ({ connection, nodes, speed, opacity, colorBlend, isDark 
 
   return (
     <g>
+      {/* Background Line */}
       <path d={pathD} stroke={bgLineColor} strokeWidth={1.5} fill="none" className="opacity-40" />
+      {/* Dashed overlay */}
       <path d={pathD} stroke={lineColor} strokeWidth="0.75" fill="none" strokeDasharray="4,4" className="opacity-25" />
+      {/* Moving Particle */}
       <circle r="3" fill={lineColor} style={{ filter: `drop-shadow(0 0 3px ${lineColor})` }} opacity={opacity}>
         <animateMotion dur={`${duration}s`} repeatCount="indefinite" path={pathD} keyPoints="0;1" keyTimes="0;1" calcMode="linear" />
       </circle>
+      {/* Second Particle */}
       <circle r="2" fill={lineColor} style={{ filter: `drop-shadow(0 0 2px ${lineColor})` }} opacity={opacity * 0.6}>
         <animateMotion dur={`${duration}s`} begin={`${duration/2}s`} repeatCount="indefinite" path={pathD} keyPoints="0;1" keyTimes="0;1" calcMode="linear" />
       </circle>
+      {/* Arrow at end */}
       <circle cx={endX} cy={endY} r="2" fill={lineColor} />
     </g>
   );
@@ -361,14 +369,16 @@ export function AuroraCoreDiagram() {
   const [isActive, setIsActive] = useState(true);
   const [speed, setSpeed] = useState(70);
   const [opacity, setOpacity] = useState(0.9);
-  const [colorBlend, setColorBlend] = useState(0);
+  const [colorBlend, setColorBlend] = useState(0); // 0 = Aurora colors, 1 = Vibrant colors
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
+  // Auto-start animation
   useEffect(() => {
     setIsActive(true);
   }, []);
 
+  // Theme-aware colors
   const gridColor = isDark ? '#22d3ee' : '#F5EFE4';
   const controllerBg = isDark ? 'bg-black/80' : 'bg-[#3D3124]/95';
   const controllerBorder = isDark ? 'border-cyan-500/30' : 'border-[#8B7355]/50';
@@ -381,6 +391,7 @@ export function AuroraCoreDiagram() {
 
   return (
     <div className="w-full h-[560px] relative overflow-hidden rounded-2xl">
+      {/* Grid Background */}
       <div className="absolute inset-0 opacity-[0.04]"
         style={{
           backgroundImage: `linear-gradient(${gridColor} 1px, transparent 1px), linear-gradient(90deg, ${gridColor} 1px, transparent 1px)`,
@@ -388,12 +399,14 @@ export function AuroraCoreDiagram() {
         }}
       />
 
+      {/* Controller Box */}
       <div className={`absolute top-4 left-4 z-20 ${controllerBg} backdrop-blur-sm border ${controllerBorder} rounded-lg p-3 w-48 shadow-lg`}>
         <div className="flex items-center gap-2 mb-3">
           <Cpu size={14} className={iconColor} />
           <span className={`text-[11px] font-semibold ${titleColor} tracking-wide`}>AURORA CORE</span>
         </div>
 
+        {/* Flow Speed Slider */}
         <div className="mb-3">
           <label className={`text-[9px] ${labelColor} uppercase tracking-wider mb-1 block`}>Flow Speed</label>
           <input
@@ -406,6 +419,7 @@ export function AuroraCoreDiagram() {
           />
         </div>
 
+        {/* Particle Opacity Slider */}
         <div className="mb-3">
           <label className={`text-[9px] ${labelColor} uppercase tracking-wider mb-1 block`}>Particle Opacity</label>
           <input
@@ -418,6 +432,7 @@ export function AuroraCoreDiagram() {
           />
         </div>
 
+        {/* Color Theme Slider */}
         <div className="mb-3">
           <label className={`text-[9px] ${labelColor} uppercase tracking-wider mb-1 block`}>Color Theme</label>
           <input
@@ -430,6 +445,7 @@ export function AuroraCoreDiagram() {
           />
         </div>
 
+        {/* Play/Pause Button */}
         <button
           onClick={() => setIsActive(!isActive)}
           className={`w-full flex items-center justify-center gap-2 py-1.5 ${buttonBg} border rounded text-[10px] ${titleColor} transition-colors`}
@@ -439,7 +455,9 @@ export function AuroraCoreDiagram() {
         </button>
       </div>
 
+      {/* Diagram */}
       <div className="relative w-full h-full">
+        {/* SVG Layer for Connections */}
         <svg className="absolute top-0 left-0 w-full h-full z-0">
           <defs>
             <filter id="glow-aurora">
@@ -463,6 +481,7 @@ export function AuroraCoreDiagram() {
           ))}
         </svg>
 
+        {/* Render Nodes */}
         {AURORA_NODES.map((node) => (
           <DiagramNode key={node.id} node={node} colorBlend={colorBlend} isDark={isDark} />
         ))}

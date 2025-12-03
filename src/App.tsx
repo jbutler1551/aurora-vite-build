@@ -4,6 +4,10 @@ import { AuthProvider, useAuth } from './lib/auth-context';
 import { Toaster } from 'sonner';
 
 // Pages
+import HomePage from './pages/home';
+import WhyAuroraPage from './pages/why-aurora';
+import FeaturesPage from './pages/features';
+import PricingPage from './pages/pricing';
 import LoginPage from './pages/login';
 import SignupPage from './pages/signup';
 import DashboardPage from './pages/dashboard';
@@ -95,8 +99,11 @@ function App() {
               <Route path="settings" element={<SettingsPage />} />
             </Route>
 
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Marketing pages */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/why-aurora" element={<WhyAuroraPage />} />
+            <Route path="/features" element={<FeaturesPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
           </Routes>
         </BrowserRouter>
         <Toaster position="bottom-right" richColors />

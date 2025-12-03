@@ -1,157 +1,97 @@
-import { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../lib/auth-context';
-import { useTheme } from '../../lib/theme-context';
-import {
-  LayoutDashboard,
-  Plus,
-  Building2,
-  GraduationCap,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  Sun,
-  Moon,
-} from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { Outlet } from 'react-router-dom';
+import { Sidebar } from '@/components/dashboard/sidebar';
+import { Header } from '@/components/dashboard/header';
+import { useTheme } from '@/lib/theme-context';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/new', label: 'New Analysis', icon: Plus },
-  { href: '/dashboard/companies', label: 'Companies', icon: Building2 },
-  { href: '/dashboard/academy', label: 'Academy', icon: GraduationCap },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-];
+interface DashboardLayoutProps {
+  title?: string;
+}
 
-export default function DashboardLayout() {
-  const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+export default function DashboardLayout({ title }: DashboardLayoutProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+    <div className={`flex h-screen overflow-hidden transition-colors duration-500 ${
+      isDark ? 'bg-[#0a0a0a]' : 'bg-[#ebe3d3]'
+    }`}>
+      {/* Aurora Borealis Background - BEHIND everything in dark mode */}
+      {isDark && (
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+          {/* Primary aurora curtains - top of screen */}
+          <div
+            className="absolute inset-0 opacity-60"
+            style={{
+              background: `
+                radial-gradient(ellipse 120% 60% at 10% -20%, rgba(34, 211, 238, 0.25) 0%, transparent 50%),
+                radial-gradient(ellipse 100% 50% at 50% -10%, rgba(52, 211, 153, 0.2) 0%, transparent 45%),
+                radial-gradient(ellipse 110% 55% at 90% -15%, rgba(168, 85, 247, 0.22) 0%, transparent 50%)
+              `,
+            }}
+          />
+
+          {/* Secondary flowing aurora bands */}
+          <div
+            className="absolute inset-0 opacity-50 animate-aurora-shift"
+            style={{
+              background: `
+                radial-gradient(ellipse 80% 40% at 20% 15%, rgba(34, 211, 238, 0.18) 0%, transparent 55%),
+                radial-gradient(ellipse 70% 35% at 75% 10%, rgba(52, 211, 153, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse 90% 45% at 45% 20%, rgba(168, 85, 247, 0.12) 0%, transparent 55%)
+              `,
+            }}
+          />
+
+          {/* Tertiary aurora waves with pink */}
+          <div
+            className="absolute inset-0 opacity-40 animate-aurora-shift-reverse"
+            style={{
+              background: `
+                radial-gradient(ellipse 60% 30% at 5% 25%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse 70% 35% at 95% 20%, rgba(236, 72, 153, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse 50% 25% at 50% 30%, rgba(34, 211, 238, 0.1) 0%, transparent 45%)
+              `,
+            }}
+          />
+
+          {/* Bright aurora glow spots */}
+          <div className="absolute top-[5%] left-[10%] w-[600px] h-[400px] bg-cyan-500/20 rounded-full blur-[150px] animate-float-slow" />
+          <div className="absolute top-[0%] right-[20%] w-[500px] h-[350px] bg-emerald-500/18 rounded-full blur-[130px] animate-float-slower" />
+          <div className="absolute top-[10%] left-[40%] w-[550px] h-[380px] bg-purple-500/15 rounded-full blur-[140px] animate-float-slow" />
+          <div className="absolute top-[15%] right-[5%] w-[400px] h-[300px] bg-pink-500/12 rounded-full blur-[120px] animate-float-slower" />
+
+          {/* Lower aurora reflections */}
+          <div className="absolute bottom-[20%] left-[15%] w-[450px] h-[250px] bg-cyan-500/10 rounded-full blur-[100px] animate-float-slower" />
+          <div className="absolute bottom-[30%] right-[25%] w-[400px] h-[200px] bg-emerald-500/8 rounded-full blur-[90px] animate-float-slow" />
+
+          {/* Subtle noise texture for depth */}
+          <div
+            className="absolute inset-0 opacity-[0.02] mix-blend-screen"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+            }}
+          />
+        </div>
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          'fixed top-0 left-0 z-50 h-full w-64 bg-card border-r border-border transform transition-transform duration-200 lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b border-border">
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold">A</span>
-              </div>
-              <span className="text-xl font-bold text-foreground">Aurora</span>
-            </Link>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )}
-                >
-                  <item.icon size={20} />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* User section */}
-          <div className="p-4 border-t border-border space-y-2">
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-              <span className="font-medium">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-            </button>
-
-            <div className="flex items-center gap-3 px-3 py-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-medium text-primary">
-                  {user?.name?.charAt(0) || 'U'}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-              </div>
-            </div>
-
-            <button
-              onClick={logout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
-            >
-              <LogOut size={20} />
-              <span className="font-medium">Sign out</span>
-            </button>
-          </div>
+      {/* Light mode background orbs */}
+      {!isDark && (
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-gradient-radial from-[#d4c4a8]/50 via-[#c9b896]/30 to-transparent rounded-full blur-3xl animate-float-slow" />
+          <div className="absolute top-1/2 -left-32 w-[400px] h-[400px] bg-gradient-radial from-[#c9b896]/40 via-[#bfae8c]/25 to-transparent rounded-full blur-3xl animate-float-slower" />
+          <div className="absolute -bottom-32 right-1/4 w-[450px] h-[450px] bg-gradient-radial from-[#bfae8c]/45 via-[#d4c4a8]/25 to-transparent rounded-full blur-3xl animate-float-slow" />
         </div>
-      </aside>
+      )}
 
-      {/* Main content */}
-      <div className="lg:pl-64">
-        {/* Mobile header */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur border-b border-border lg:hidden">
-          <div className="flex items-center justify-between p-4">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 -ml-2 text-muted-foreground hover:text-foreground"
-            >
-              <Menu size={24} />
-            </button>
-            <Link to="/dashboard" className="text-xl font-bold text-foreground">
-              Aurora
-            </Link>
-            <button
-              onClick={toggleTheme}
-              className="p-2 -mr-2 text-muted-foreground hover:text-foreground"
-            >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="p-6">
+      <Sidebar />
+      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
+        <Header title={title} />
+        <main className={`flex-1 overflow-auto p-6 relative transition-colors duration-500 ${
+          isDark ? 'bg-transparent' : 'bg-[#F8F7F4]'
+        }`}>
           <Outlet />
         </main>
       </div>
-
-      {/* Mobile close button */}
-      {sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(false)}
-          className="fixed top-4 right-4 z-50 p-2 bg-card rounded-full shadow-lg lg:hidden"
-        >
-          <X size={20} />
-        </button>
-      )}
     </div>
   );
 }
