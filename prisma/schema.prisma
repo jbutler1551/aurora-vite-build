@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         String     @default("user")
+  avatarUrl    String?
+  teamId       String
+  team         Team       @relation(fields: [teamId], references: [id])
+  analyses     Analysis[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Team {
+  id                    String     @id @default(cuid())
+  name                  String
+  monthlyAnalysisLimit  Int        @default(10)
+  monthlyAnalysisUsed   Int        @default(0)
+  users                 User[]
+  companies             Company[]
+  analyses              Analysis[]
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model Company {
+  id            String     @id @default(cuid())
+  name          String
+  domain        String
+  url           String
+  industry      String?
+  subIndustry   String?
+  employeeRange String?
+  headquarters  String?
+  foundedYear   Int?
+  description   String?
+  teamId        String
+  team          Team       @relation(fields: [teamId], references: [id])
+  analyses      Analysis[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([domain, teamId])
+}
+
+model Analysis {
+  id                         String    @id @default(cuid())
+  status                     String    @default("PENDING")
+  mode                       String    @default("SALES")
+  config                     Json?
+  progress                   Int       @default(0)
+  currentPhase               String?
+  currentStep                String?
+  extractedContent           Json?
+  companyResearch            Json?
+  companyProfile             Json?
+  regionalCompetitorDiscovery Json?
+  globalCompetitorDiscovery  Json?
+  competitorEnrichment       Json?
+  competitorDeepDives        Json?
+  competitiveAnalysis        Json?
+  industryTrendsResearch     Json?
+  competitorTechResearch     Json?
+  caseStudyResearch          Json?
+  opportunities              Json?
+  aiReadinessScore           Json?
+  cheatSheet                 Json?
+  fullReport                 Json?
+  errorLog                   Json?
+  totalCostUSD               Float?
+  startedAt                  DateTime?
+  completedAt                DateTime?
+  companyId                  String
+  company                    Company   @relation(fields: [companyId], references: [id])
+  userId                     String
+  user                       User      @relation(fields: [userId], references: [id])
+  teamId                     String
+  team                       Team      @relation(fields: [teamId], references: [id])
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+}
