@@ -47,3 +47,6 @@ prisma/*.db-journal
 
 # Replit
 .cache
+
+# Recall Loop (local only - not for client repos)
+.claude/
