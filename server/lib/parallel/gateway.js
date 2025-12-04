@@ -166,7 +166,9 @@ export class ParallelGateway {
         'Authorization': `Bearer ${this.config.apiKey}`,
         'Content-Type': 'application/json',
         'X-Request-ID': requestId,
-        'parallel-beta': 'search-extract-2025-10-10',
+        'parallel-beta': options.endpoint?.includes('findall')
+          ? 'findall-2025-09-15'
+          : 'search-extract-2025-10-10',
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
       signal: options.timeout ? AbortSignal.timeout(options.timeout) : undefined,
@@ -275,7 +277,7 @@ export class ParallelGateway {
       method: 'POST',
       body: {
         objective: query,
-        entity_type: options.entityType || 'company',
+        entity_type: options.entityType || 'companies',
         match_conditions: matchConditions,
         generator: generator,
         match_limit: matchLimit,
