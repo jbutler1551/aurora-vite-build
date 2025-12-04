@@ -247,10 +247,15 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
   // Step 3.1: Find regional competitors
   await updateProgress(analysisId, 'PHASE_3_COMPETITOR_DISCOVERY', 'Finding regional competitors...', 0.2);
 
-  const regionalQuery = buildRegionalCompetitorQuery(companyName, industry, headquarters, targetCustomers);
+  const regionalQueryConfig = buildRegionalCompetitorQuery(companyName, industry, headquarters, targetCustomers);
   const regionalResponse = await parallel.findAll(
-    `Find regional competitors of ${companyName} in ${industry}`,
-    regionalQuery
+    `Find regional competitors of ${companyName} in the ${industry} industry that operate in ${headquarters} and serve ${targetCustomers}`,
+    {
+      entityType: regionalQueryConfig.entityType,
+      matchConditions: regionalQueryConfig.matchConditions,
+      matchLimit: regionalQueryConfig.matchLimit || 10,
+      processor: regionalQueryConfig.generator || 'core',
+    }
   );
   totalCost += regionalResponse.estimatedCostUSD;
 
@@ -264,10 +269,15 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
   // Step 3.2: Find global competitors
   await updateProgress(analysisId, 'PHASE_3_COMPETITOR_DISCOVERY', 'Finding global competitors...', 0.5);
 
-  const globalQuery = buildGlobalCompetitorQuery(companyName, industry, targetCustomers);
+  const globalQueryConfig = buildGlobalCompetitorQuery(companyName, industry, targetCustomers);
   const globalResponse = await parallel.findAll(
-    `Find global competitors of ${companyName} in ${industry}`,
-    globalQuery
+    `Find global industry leaders and competitors of ${companyName} in the ${industry} industry serving ${targetCustomers}`,
+    {
+      entityType: globalQueryConfig.entityType,
+      matchConditions: globalQueryConfig.matchConditions,
+      matchLimit: globalQueryConfig.matchLimit || 10,
+      processor: globalQueryConfig.generator || 'core',
+    }
   );
   totalCost += globalResponse.estimatedCostUSD;
 

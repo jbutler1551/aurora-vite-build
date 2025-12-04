@@ -245,19 +245,23 @@ export class ParallelGateway {
   /**
    * FindAll API - Discover entities matching conditions
    */
-  async findAll(query, options) {
+  async findAll(objective, options = {}) {
+    const processor = options.processor || 'core';
+
     return this.request({
       endpoint: '/v1beta/findall/runs',
       method: 'POST',
       body: {
-        query,
-        entity_type: options.entityType,
-        match_conditions: options.matchConditions,
-        generator: options.generator || 'core',
-        match_limit: options.matchLimit || 10,
+        objective,
+        findall_spec: {
+          entity_type: options.entityType || 'company',
+          match_conditions: options.matchConditions || [],
+          match_limit: options.matchLimit || 10,
+        },
+        processor,
       },
-      processorTier: options.generator || 'core',
-      cacheKey: this.cache.generateKey({ findall: query, ...options }),
+      processorTier: processor,
+      cacheKey: this.cache.generateKey({ findall: objective, ...options }),
     });
   }
 
