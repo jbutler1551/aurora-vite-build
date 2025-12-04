@@ -163,7 +163,7 @@ export class ParallelGateway {
     const response = await fetch(url, {
       method: options.method,
       headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        'x-api-key': this.config.apiKey,
         'Content-Type': 'application/json',
         'X-Request-ID': requestId,
         'parallel-beta': options.endpoint?.includes('findall')
