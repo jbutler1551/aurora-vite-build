@@ -289,10 +289,10 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
   const regionalResponse = await parallel.findAll(
     `Find regional competitors of ${companyName} in the ${industry} industry that operate in ${headquarters} and serve ${targetCustomers}`,
     {
-      specName: 'regional_competitor_search',
+      entityType: 'company',
       matchConditions: regionalQueryConfig.matchConditions,
-      resultLimit: regionalQueryConfig.matchLimit || 10,
-      processor: 'base',
+      matchLimit: regionalQueryConfig.matchLimit || 10,
+      generator: 'base',
     }
   );
   totalCost += regionalResponse.estimatedCostUSD;
@@ -311,10 +311,10 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
   const globalResponse = await parallel.findAll(
     `Find global industry leaders and competitors of ${companyName} in the ${industry} industry serving ${targetCustomers}`,
     {
-      specName: 'global_competitor_search',
+      entityType: 'company',
       matchConditions: globalQueryConfig.matchConditions,
-      resultLimit: globalQueryConfig.matchLimit || 10,
-      processor: 'base',
+      matchLimit: globalQueryConfig.matchLimit || 10,
+      generator: 'base',
     }
   );
   totalCost += globalResponse.estimatedCostUSD;

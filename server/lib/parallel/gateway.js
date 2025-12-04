@@ -244,29 +244,29 @@ export class ParallelGateway {
 
   /**
    * FindAll API - Discover entities matching conditions
-   * Uses the FindAllRunPayload format with findall_spec and processor
-   * Docs: https://docs.parallel.ai/findall-api/findall-api
+   * Uses FindAllRunInput format with objective, entity_type, match_conditions, generator
+   * Docs: https://docs.parallel.ai/public-openapi.json
    */
   async findAll(query, options = {}) {
-    const processor = options.processor || 'base';
-    const resultLimit = options.resultLimit || 10;
+    const generator = options.generator || options.processor || 'base';
+    const matchLimit = options.matchLimit || options.resultLimit || 10;
 
-    // Build columns based on what we're searching for
-    const columns = options.columns || [
-      { name: 'entity_name', description: 'Name of the company', type: 'enrichment', order_direction: null },
-      { name: 'website', description: 'Company website URL', type: 'enrichment', order_direction: null },
-      { name: 'description', description: 'Brief description of what the company does', type: 'enrichment', order_direction: null },
-    ];
-
-    // Add constraint columns if match conditions provided
+    // Build match_conditions array - each condition has name and description as strings
+    const matchConditions = [];
     if (options.matchConditions && options.matchConditions.length > 0) {
-      options.matchConditions.forEach((condition, idx) => {
-        columns.push({
-          name: `constraint_${idx}`,
-          description: condition,
-          type: 'constraint',
-          order_direction: null,
-        });
+      options.matchConditions.forEach((condition) => {
+        // Handle both string conditions and object conditions
+        if (typeof condition === 'string') {
+          matchConditions.push({
+            name: condition.substring(0, 50).replace(/[^a-zA-Z0-9_]/g, '_'),
+            description: condition,
+          });
+        } else if (condition.name && condition.description) {
+          matchConditions.push({
+            name: String(condition.name),
+            description: String(condition.description),
+          });
+        }
       });
     }
 
@@ -274,16 +274,14 @@ export class ParallelGateway {
       endpoint: '/v1beta/findall/runs',
       method: 'POST',
       body: {
-        findall_spec: {
-          name: options.specName || 'competitor_search',
-          query: query,
-          columns: columns,
-        },
-        processor,
-        result_limit: resultLimit,
+        objective: query,
+        entity_type: options.entityType || 'company',
+        match_conditions: matchConditions,
+        generator: generator,
+        match_limit: matchLimit,
       },
-      processorTier: processor,
-      cacheKey: this.cache.generateKey({ findall: query, processor, resultLimit }),
+      processorTier: generator,
+      cacheKey: this.cache.generateKey({ findall: query, generator, matchLimit }),
     });
   }
 
