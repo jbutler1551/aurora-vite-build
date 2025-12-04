@@ -216,7 +216,7 @@ export class ParallelGateway {
         urls,
         objective: options.objective || 'Extract all company information',
         excerpts: options.excerpts ?? true,
-        fullContent: options.fullContent ?? true,
+        full_content: options.fullContent ?? true,
       },
       cacheKey: this.cache.generateKey({ extract: urls, ...options }),
     });
