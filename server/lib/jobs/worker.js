@@ -87,10 +87,18 @@ async function saveToAuroraCore(analysisId, field, data, costUSD = 0) {
  * Each task can take 10-30+ minutes to complete. We MUST poll until the API
  * explicitly returns status: 'completed' - we cannot trust any data in the
  * initial response as "complete".
+ *
+ * FindAll API uses different status indicators:
+ * - is_active: whether the search is still running
+ * - are_enrichments_active: whether enrichments are still running
+ * - Complete when BOTH are false
  */
 async function waitForParallelTask(parallel, response, taskType) {
+  // Detect if this is a FindAll task (uses findall_id)
+  const isFindAll = taskType.toLowerCase().includes('findall');
+
   // Get task ID from response - this is REQUIRED for async tasks
-  const taskId = response.data?.runId || response.data?.findallId || response.data?.id || response.data?.run_id;
+  const taskId = response.data?.findall_id || response.data?.findallId || response.data?.runId || response.data?.id || response.data?.run_id;
 
   if (!taskId) {
     // Only for truly synchronous endpoints (like simple extract)
@@ -100,7 +108,7 @@ async function waitForParallelTask(parallel, response, taskType) {
     return response.data;
   }
 
-  console.log(`[Parallel] ${taskType} started with task ID: ${taskId}`);
+  console.log(`[Parallel] ${taskType} started with task ID: ${taskId} (isFindAll: ${isFindAll})`);
   console.log(`[Parallel] ${taskType} - Beginning polling loop. This may take 10-30+ minutes...`);
 
   // Poll for completion - allow up to 45 minutes per task
@@ -114,34 +122,48 @@ async function waitForParallelTask(parallel, response, taskType) {
     const elapsedMin = Math.round((Date.now() - startTime) / 60000);
 
     try {
-      const status = await parallel.pollTaskStatus(taskId);
-      const currentStatus = status.data?.status || 'unknown';
+      // Use the appropriate polling method based on task type
+      const status = isFindAll
+        ? await parallel.pollFindAllStatus(taskId)
+        : await parallel.pollTaskStatus(taskId);
 
-      console.log(`[Parallel] ${taskType} poll #${pollCount} (${elapsedMin}min): status=${currentStatus}`);
+      // FindAll uses different completion signals
+      if (isFindAll) {
+        const isActive = status.data?.is_active;
+        const areEnrichmentsActive = status.data?.are_enrichments_active;
+        const matchCount = status.data?.results?.length || 0;
 
-      if (currentStatus === 'completed') {
-        console.log(`[Parallel] ✓ ${taskType} COMPLETED after ${elapsedMin} minutes`);
-        const result = await parallel.getTaskResult(taskId);
-        return result.data;
+        console.log(`[Parallel] ${taskType} poll #${pollCount} (${elapsedMin}min): is_active=${isActive}, enrichments_active=${areEnrichmentsActive}, matches=${matchCount}`);
+
+        // FindAll is complete when both is_active and are_enrichments_active are false
+        if (isActive === false && areEnrichmentsActive === false) {
+          console.log(`[Parallel] ✓ ${taskType} COMPLETED after ${elapsedMin} minutes with ${matchCount} matches`);
+          return status.data;
+        }
+      } else {
+        const currentStatus = status.data?.status || 'unknown';
+
+        console.log(`[Parallel] ${taskType} poll #${pollCount} (${elapsedMin}min): status=${currentStatus}`);
+
+        if (currentStatus === 'completed') {
+          console.log(`[Parallel] ✓ ${taskType} COMPLETED after ${elapsedMin} minutes`);
+          const result = await parallel.getTaskResult(taskId);
+          return result.data;
+        }
+
+        if (currentStatus === 'failed') {
+          const errorMsg = status.data?.error || status.data?.message || 'Unknown error';
+          console.error(`[Parallel] ✗ ${taskType} FAILED: ${errorMsg}`);
+          throw new Error(`${taskType} failed: ${errorMsg}`);
+        }
       }
-
-      if (currentStatus === 'failed') {
-        const errorMsg = status.data?.error || status.data?.message || 'Unknown error';
-        console.error(`[Parallel] ✗ ${taskType} FAILED: ${errorMsg}`);
-        throw new Error(`${taskType} failed: ${errorMsg}`);
-      }
-
-      // Task is still running (pending, processing, etc.)
-      // Continue polling
     } catch (pollError) {
-      // Network errors during polling are recoverable - keep trying
       console.log(`[Parallel] ${taskType} poll error (will retry): ${pollError.message}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 
-  // Timeout after maxWait
   const totalMin = Math.round(maxWait / 60000);
   console.error(`[Parallel] ✗ ${taskType} TIMED OUT after ${totalMin} minutes`);
   throw new Error(`${taskType} timed out after ${totalMin} minutes. Task ID: ${taskId}`);
@@ -267,10 +289,10 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
   const regionalResponse = await parallel.findAll(
     `Find regional competitors of ${companyName} in the ${industry} industry that operate in ${headquarters} and serve ${targetCustomers}`,
     {
-      entityType: regionalQueryConfig.entityType,
+      specName: 'regional_competitor_search',
       matchConditions: regionalQueryConfig.matchConditions,
-      matchLimit: regionalQueryConfig.matchLimit || 10,
-      generator: 'base',
+      resultLimit: regionalQueryConfig.matchLimit || 10,
+      processor: 'base',
     }
   );
   totalCost += regionalResponse.estimatedCostUSD;
@@ -289,10 +311,10 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
   const globalResponse = await parallel.findAll(
     `Find global industry leaders and competitors of ${companyName} in the ${industry} industry serving ${targetCustomers}`,
     {
-      entityType: globalQueryConfig.entityType,
+      specName: 'global_competitor_search',
       matchConditions: globalQueryConfig.matchConditions,
-      matchLimit: globalQueryConfig.matchLimit || 10,
-      generator: 'base',
+      resultLimit: globalQueryConfig.matchLimit || 10,
+      processor: 'base',
     }
   );
   totalCost += globalResponse.estimatedCostUSD;

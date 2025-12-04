@@ -244,23 +244,46 @@ export class ParallelGateway {
 
   /**
    * FindAll API - Discover entities matching conditions
-   * Uses the FindAllRunInput format with top-level fields
+   * Uses the FindAllRunPayload format with findall_spec and processor
+   * Docs: https://docs.parallel.ai/findall-api/findall-api
    */
   async findAll(query, options = {}) {
-    const generator = options.generator || 'base';
+    const processor = options.processor || 'base';
+    const resultLimit = options.resultLimit || 10;
+
+    // Build columns based on what we're searching for
+    const columns = options.columns || [
+      { name: 'entity_name', description: 'Name of the company', type: 'enrichment', order_direction: null },
+      { name: 'website', description: 'Company website URL', type: 'enrichment', order_direction: null },
+      { name: 'description', description: 'Brief description of what the company does', type: 'enrichment', order_direction: null },
+    ];
+
+    // Add constraint columns if match conditions provided
+    if (options.matchConditions && options.matchConditions.length > 0) {
+      options.matchConditions.forEach((condition, idx) => {
+        columns.push({
+          name: `constraint_${idx}`,
+          description: condition,
+          type: 'constraint',
+          order_direction: null,
+        });
+      });
+    }
 
     return this.request({
       endpoint: '/v1beta/findall/runs',
       method: 'POST',
       body: {
-        entity_type: options.entityType || 'company',
-        query,
-        match_conditions: options.matchConditions || [],
-        generator,
-        match_limit: options.matchLimit || 10,
+        findall_spec: {
+          name: options.specName || 'competitor_search',
+          query: query,
+          columns: columns,
+        },
+        processor,
+        result_limit: resultLimit,
       },
-      processorTier: generator,
-      cacheKey: this.cache.generateKey({ findall: query, ...options }),
+      processorTier: processor,
+      cacheKey: this.cache.generateKey({ findall: query, processor, resultLimit }),
     });
   }
 
@@ -283,11 +306,24 @@ export class ParallelGateway {
   }
 
   /**
-   * Poll task status
+   * Poll task status (generic tasks)
    */
   async pollTaskStatus(taskId) {
     return this.request({
       endpoint: `/v1/tasks/runs/${taskId}`,
+      method: 'GET',
+      bypassCache: true,
+    });
+  }
+
+  /**
+   * Poll FindAll task status
+   * FindAll uses a different endpoint: /v1beta/findall/runs/{id}
+   * Completion is when BOTH is_active AND are_enrichments_active are false
+   */
+  async pollFindAllStatus(findallId) {
+    return this.request({
+      endpoint: `/v1beta/findall/runs/${findallId}`,
       method: 'GET',
       bypassCache: true,
     });
@@ -299,6 +335,16 @@ export class ParallelGateway {
   async getTaskResult(taskId) {
     return this.request({
       endpoint: `/v1/tasks/runs/${taskId}/result`,
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Get FindAll result
+   */
+  async getFindAllResult(findallId) {
+    return this.request({
+      endpoint: `/v1beta/findall/runs/${findallId}`,
       method: 'GET',
     });
   }
