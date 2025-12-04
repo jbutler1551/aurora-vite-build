@@ -15,6 +15,8 @@ import NewAnalysisPage from './pages/dashboard/new';
 import AnalysisPage from './pages/dashboard/analysis/[id]';
 import CompaniesPage from './pages/dashboard/companies';
 import CompanyPage from './pages/dashboard/companies/[id]';
+import MonitorsPage from './pages/dashboard/monitors';
+import ReportsPage from './pages/dashboard/reports';
 import AcademyPage from './pages/dashboard/academy';
 import SettingsPage from './pages/dashboard/settings';
 
@@ -95,6 +97,8 @@ function App() {
               <Route path="analysis/:id" element={<AnalysisPage />} />
               <Route path="companies" element={<CompaniesPage />} />
               <Route path="companies/:id" element={<CompanyPage />} />
+              <Route path="monitors" element={<MonitorsPage />} />
+              <Route path="reports" element={<ReportsPage />} />
               <Route path="academy" element={<AcademyPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
