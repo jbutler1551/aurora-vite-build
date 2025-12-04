@@ -82,53 +82,69 @@ async function saveToAuroraCore(analysisId, field, data, costUSD = 0) {
 
 /**
  * Wait for Parallel API task completion with polling
- * This is CRITICAL - Parallel API is async, we must wait for results
+ *
+ * CRITICAL: Parallel API tasks are async and involve real-time web research.
+ * Each task can take 10-30+ minutes to complete. We MUST poll until the API
+ * explicitly returns status: 'completed' - we cannot trust any data in the
+ * initial response as "complete".
  */
 async function waitForParallelTask(parallel, response, taskType) {
-  // Check if already completed (synchronous response)
-  if (response.data?.results || response.data?.content || response.data?.status === 'completed') {
-    console.log(`[Parallel] ${taskType} completed synchronously`);
-    return response.data;
-  }
-
-  // Get task ID from response
-  const taskId = response.data?.runId || response.data?.findallId || response.data?.id;
+  // Get task ID from response - this is REQUIRED for async tasks
+  const taskId = response.data?.runId || response.data?.findallId || response.data?.id || response.data?.run_id;
 
   if (!taskId) {
-    console.log(`[Parallel] ${taskType} - No task ID, using direct response`);
+    // Only for truly synchronous endpoints (like simple extract)
+    // Log a warning - most tasks SHOULD have a task ID
+    console.warn(`[Parallel] WARNING: ${taskType} returned no task ID. Response may be incomplete.`);
+    console.log(`[Parallel] Response data keys: ${Object.keys(response.data || {}).join(', ')}`);
     return response.data;
   }
 
   console.log(`[Parallel] ${taskType} started with task ID: ${taskId}`);
+  console.log(`[Parallel] ${taskType} - Beginning polling loop. This may take 10-30+ minutes...`);
 
-  // Poll for completion
-  const maxWait = 300000; // 5 minutes
-  const pollInterval = 3000; // 3 seconds
+  // Poll for completion - allow up to 45 minutes per task
+  const maxWait = 2700000; // 45 minutes (tasks can take 10-30+ min)
+  const pollInterval = 10000; // 10 seconds between polls
   const startTime = Date.now();
+  let pollCount = 0;
 
   while (Date.now() - startTime < maxWait) {
+    pollCount++;
+    const elapsedMin = Math.round((Date.now() - startTime) / 60000);
+
     try {
       const status = await parallel.pollTaskStatus(taskId);
+      const currentStatus = status.data?.status || 'unknown';
 
-      if (status.data?.status === 'completed') {
-        console.log(`[Parallel] ${taskType} completed after ${Math.round((Date.now() - startTime) / 1000)}s`);
+      console.log(`[Parallel] ${taskType} poll #${pollCount} (${elapsedMin}min): status=${currentStatus}`);
+
+      if (currentStatus === 'completed') {
+        console.log(`[Parallel] ✓ ${taskType} COMPLETED after ${elapsedMin} minutes`);
         const result = await parallel.getTaskResult(taskId);
         return result.data;
       }
 
-      if (status.data?.status === 'failed') {
-        throw new Error(`${taskType} failed: ${status.data?.error || 'Unknown error'}`);
+      if (currentStatus === 'failed') {
+        const errorMsg = status.data?.error || status.data?.message || 'Unknown error';
+        console.error(`[Parallel] ✗ ${taskType} FAILED: ${errorMsg}`);
+        throw new Error(`${taskType} failed: ${errorMsg}`);
       }
 
-      console.log(`[Parallel] ${taskType} status: ${status.data?.status || 'pending'}`);
+      // Task is still running (pending, processing, etc.)
+      // Continue polling
     } catch (pollError) {
-      console.log(`[Parallel] ${taskType} poll error (retrying): ${pollError.message}`);
+      // Network errors during polling are recoverable - keep trying
+      console.log(`[Parallel] ${taskType} poll error (will retry): ${pollError.message}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 
-  throw new Error(`${taskType} timed out after ${maxWait / 1000}s`);
+  // Timeout after maxWait
+  const totalMin = Math.round(maxWait / 60000);
+  console.error(`[Parallel] ✗ ${taskType} TIMED OUT after ${totalMin} minutes`);
+  throw new Error(`${taskType} timed out after ${totalMin} minutes. Task ID: ${taskId}`);
 }
 
 /**
