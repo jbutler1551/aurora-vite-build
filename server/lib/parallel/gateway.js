@@ -166,6 +166,7 @@ export class ParallelGateway {
         'Authorization': `Bearer ${this.config.apiKey}`,
         'Content-Type': 'application/json',
         'X-Request-ID': requestId,
+        'parallel-beta': 'true',
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
       signal: options.timeout ? AbortSignal.timeout(options.timeout) : undefined,
