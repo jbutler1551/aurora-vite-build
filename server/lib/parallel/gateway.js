@@ -231,7 +231,7 @@ export class ParallelGateway {
       method: 'POST',
       body: {
         task: 'research',
-        query,
+        input: query,
         processor,
         output_format: options.outputFormat || 'json',
         schema: options.schema,
