@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import analysisRoutes from './routes/analysis.js';
 import companyRoutes from './routes/company.js';
+import webhookRoutes from './routes/webhook.js';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/company', companyRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // In production: Serve static files from built Vite app
 if (isProduction) {

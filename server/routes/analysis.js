@@ -5,6 +5,12 @@ import { authMiddleware } from './auth.js';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Parallel API configuration
+const PARALLEL_API_KEY = process.env.PARALLEL_API_KEY;
+const PARALLEL_API_URL = process.env.PARALLEL_API_URL || 'https://api.parallel.ai';
+const WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL || 'https://your-app.replit.app';
+const USE_MOCK_ANALYSIS = process.env.USE_MOCK_ANALYSIS === 'true' || !PARALLEL_API_KEY;
+
 // Create analysis
 router.post('/', authMiddleware, async (req, res) => {
   try {
@@ -165,18 +171,21 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Analysis processing function (runs synchronously)
+/**
+ * Start analysis processing via Parallel API
+ *
+ * This calls the Parallel API to start the long-running analysis.
+ * Parallel will call our webhook endpoint with progress updates.
+ * The frontend polls our GET /api/analysis/:id endpoint to show progress.
+ *
+ * Flow:
+ * 1. User submits URL -> Creates analysis record -> Calls Parallel API
+ * 2. Parallel processes for minutes to hours
+ * 3. Parallel sends webhook updates -> We update database
+ * 4. Frontend polls database every 5 seconds -> Shows progress
+ */
 async function processAnalysis(analysisId) {
   try {
-    // Update status to processing
-    await prisma.analysis.update({
-      where: { id: analysisId },
-      data: {
-        status: 'EXTRACTING_WEBSITE',
-        progress: 10,
-      },
-    });
-
     // Get analysis with company info
     const analysis = await prisma.analysis.findUnique({
       where: { id: analysisId },
@@ -187,18 +196,100 @@ async function processAnalysis(analysisId) {
       throw new Error('Analysis not found');
     }
 
-    // TODO: Implement actual analysis logic
-    // For now, simulate progress
+    // Update status to processing
+    await prisma.analysis.update({
+      where: { id: analysisId },
+      data: {
+        status: 'EXTRACTING_WEBSITE',
+        progress: 5,
+      },
+    });
+
+    // Use mock analysis if Parallel API is not configured
+    if (USE_MOCK_ANALYSIS) {
+      console.log(`[Analysis] Using mock analysis for ${analysisId}`);
+      await runMockAnalysis(analysisId, analysis);
+      return;
+    }
+
+    // Call Parallel API to start the analysis
+    console.log(`[Analysis] Starting Parallel analysis for ${analysisId}`);
+
+    const response = await fetch(`${PARALLEL_API_URL}/v1/runs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${PARALLEL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workflow: 'company-analysis',
+        input: {
+          url: analysis.company.url,
+          domain: analysis.company.domain,
+          mode: analysis.mode,
+        },
+        metadata: {
+          analysisId: analysisId,
+          companyId: analysis.company.id,
+        },
+        webhook: {
+          url: `${WEBHOOK_BASE_URL}/api/webhooks/parallel`,
+          events: ['progress', 'completed', 'failed'],
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Parallel API error: ${error}`);
+    }
+
+    const result = await response.json();
+    console.log(`[Analysis] Parallel run started: ${result.runId}`);
+
+    // Store the Parallel run ID for tracking
+    await prisma.analysis.update({
+      where: { id: analysisId },
+      data: {
+        config: {
+          ...analysis.config,
+          parallelRunId: result.runId,
+        },
+      },
+    });
+  } catch (error) {
+    console.error(`[Analysis] ${analysisId} failed:`, error);
+    await prisma.analysis.update({
+      where: { id: analysisId },
+      data: {
+        status: 'FAILED',
+        errorLog: {
+          message: error.message,
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+  }
+}
+
+/**
+ * Mock analysis for testing without Parallel API
+ * Simulates the analysis process with realistic timing
+ */
+async function runMockAnalysis(analysisId, analysis) {
+  try {
     const steps = [
-      { status: 'RESEARCHING_COMPANY', progress: 20 },
-      { status: 'SYNTHESIZING_PROFILE', progress: 40 },
-      { status: 'DISCOVERING_COMPETITORS', progress: 60 },
-      { status: 'ANALYZING_COMPETITION', progress: 80 },
-      { status: 'GENERATING_OUTPUTS', progress: 90 },
+      { status: 'EXTRACTING_WEBSITE', progress: 10, delay: 3000 },
+      { status: 'RESEARCHING_COMPANY', progress: 25, delay: 4000 },
+      { status: 'SYNTHESIZING_PROFILE', progress: 45, delay: 5000 },
+      { status: 'DISCOVERING_COMPETITORS', progress: 60, delay: 4000 },
+      { status: 'ANALYZING_COMPETITION', progress: 75, delay: 5000 },
+      { status: 'MAPPING_OPPORTUNITIES', progress: 85, delay: 3000 },
+      { status: 'GENERATING_OUTPUTS', progress: 95, delay: 3000 },
     ];
 
     for (const step of steps) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, step.delay));
       await prisma.analysis.update({
         where: { id: analysisId },
         data: {
@@ -209,36 +300,86 @@ async function processAnalysis(analysisId) {
       });
     }
 
-    // Mark as complete
+    // Mark as complete with mock results
     await prisma.analysis.update({
       where: { id: analysisId },
       data: {
         status: 'COMPLETED',
         progress: 100,
         completedAt: new Date(),
-        // Add mock results for now
         companyProfile: {
           basics: {
             name: analysis.company.name,
             domain: analysis.company.domain,
             industry: 'Technology',
-            description: 'Company analysis completed',
+            employeeRange: '50-200',
+            headquarters: 'San Francisco, CA',
+            description: `${analysis.company.name} is a technology company focused on innovative solutions.`,
           },
-        },
-        cheatSheet: {
-          summary: `Analysis completed for ${analysis.company.name}`,
-          keyOpportunities: [
-            'AI/Automation integration opportunities',
-            'Process optimization potential',
-            'Digital transformation readiness',
+          technologySignals: {
+            techMaturity: 'Growth Stage',
+            currentTechStack: ['React', 'Node.js', 'PostgreSQL', 'AWS'],
+          },
+          painPointIndicators: [
+            { signal: 'Manual data entry processes', source: 'Website analysis', confidence: 'high' },
+            { signal: 'Legacy system integration needs', source: 'Job postings', confidence: 'medium' },
           ],
         },
+        cheatSheet: {
+          summary: `${analysis.company.name} is showing strong signals for digital transformation initiatives, with particular interest in automation and process optimization.`,
+          keyOpportunities: [
+            'AI-powered automation to reduce manual data entry by 60%',
+            'Modern API integration to replace legacy system connections',
+            'Cloud migration to improve scalability and reduce costs',
+          ],
+          talkingPoints: [
+            'Recent job postings indicate expansion in engineering team',
+            'Website mentions commitment to innovation and efficiency',
+            'Industry trends suggest high ROI for automation investments',
+          ],
+          objectionHandlers: [
+            {
+              objection: "We've tried automation before and it didn't work",
+              response: 'Modern AI-powered solutions are significantly more capable than rule-based systems. Our approach includes thorough workflow analysis to ensure proper fit.',
+            },
+            {
+              objection: "We don't have the budget right now",
+              response: 'Most clients see ROI within 6 months through reduced manual processing time. We can start with a small pilot to demonstrate value before full rollout.',
+            },
+          ],
+        },
+        opportunities: {
+          opportunities: [
+            {
+              rank: 1,
+              title: 'Workflow Automation Platform',
+              category: 'Efficiency',
+              problem: { description: 'Manual data processing consuming 40+ hours per week across teams' },
+              evidenceStrength: { score: 4 },
+            },
+            {
+              rank: 2,
+              title: 'API Integration Suite',
+              category: 'Integration',
+              problem: { description: 'Disconnected systems requiring duplicate data entry' },
+              evidenceStrength: { score: 3 },
+            },
+            {
+              rank: 3,
+              title: 'Cloud Infrastructure Modernization',
+              category: 'Infrastructure',
+              problem: { description: 'On-premise systems limiting scalability and remote work' },
+              evidenceStrength: { score: 3 },
+            },
+          ],
+        },
+        competitors: [],
       },
     });
 
-    console.log(`Analysis ${analysisId} completed`);
+    console.log(`[Mock Analysis] ${analysisId} completed`);
   } catch (error) {
-    console.error(`Analysis ${analysisId} failed:`, error);
+    console.error(`[Mock Analysis] ${analysisId} failed:`, error);
     await prisma.analysis.update({
       where: { id: analysisId },
       data: {
