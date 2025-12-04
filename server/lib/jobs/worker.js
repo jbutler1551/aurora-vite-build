@@ -254,7 +254,7 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
       entityType: regionalQueryConfig.entityType,
       matchConditions: regionalQueryConfig.matchConditions,
       matchLimit: regionalQueryConfig.matchLimit || 10,
-      processor: regionalQueryConfig.generator || 'core',
+      generator: 'base',
     }
   );
   totalCost += regionalResponse.estimatedCostUSD;
@@ -276,7 +276,7 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
       entityType: globalQueryConfig.entityType,
       matchConditions: globalQueryConfig.matchConditions,
       matchLimit: globalQueryConfig.matchLimit || 10,
-      processor: globalQueryConfig.generator || 'core',
+      generator: 'base',
     }
   );
   totalCost += globalResponse.estimatedCostUSD;
