@@ -5,7 +5,7 @@ import { Zap, Clock, FileText, ArrowRight, Loader2, Search } from 'lucide-react'
 import { cn } from '../../lib/utils';
 import { useTheme } from '../../lib/theme-context';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 type AnalysisMode = 'sales' | 'full';
 
