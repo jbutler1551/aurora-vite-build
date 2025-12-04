@@ -1,15 +1,22 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authMiddleware } from './auth.js';
+import { processRealAnalysis } from '../lib/jobs/worker.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Parallel API configuration
+// API configuration
 const PARALLEL_API_KEY = process.env.PARALLEL_API_KEY;
-const PARALLEL_API_URL = process.env.PARALLEL_API_URL || 'https://api.parallel.ai';
-const WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL || 'https://your-app.replit.app';
-const USE_MOCK_ANALYSIS = process.env.USE_MOCK_ANALYSIS === 'true' || !PARALLEL_API_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+// Use real analysis only when BOTH APIs are configured and mock is not forced
+const USE_MOCK_ANALYSIS = process.env.USE_MOCK_ANALYSIS === 'true' || !PARALLEL_API_KEY || !ANTHROPIC_API_KEY;
+
+// Log which mode we're using on startup
+console.log(`[Analysis] Mode: ${USE_MOCK_ANALYSIS ? 'MOCK' : 'REAL'}`);
+if (!PARALLEL_API_KEY) console.log('[Analysis] Missing PARALLEL_API_KEY - using mock mode');
+if (!ANTHROPIC_API_KEY) console.log('[Analysis] Missing ANTHROPIC_API_KEY - using mock mode');
 
 // Create analysis
 router.post('/', authMiddleware, async (req, res) => {
@@ -172,17 +179,23 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 /**
- * Start analysis processing via Parallel API
+ * Start analysis processing
  *
- * This calls the Parallel API to start the long-running analysis.
- * Parallel will call our webhook endpoint with progress updates.
- * The frontend polls our GET /api/analysis/:id endpoint to show progress.
+ * Two modes:
+ * 1. REAL: Uses Parallel API (data gathering) + Anthropic Claude (AI synthesis)
+ *    - Full 4-phase pipeline with real API calls
+ *    - Progress updates saved to database
+ *    - Frontend polls every 5 seconds
+ *
+ * 2. MOCK: Simulated analysis for testing
+ *    - Progresses through phases with delays
+ *    - Returns sample data
  *
  * Flow:
- * 1. User submits URL -> Creates analysis record -> Calls Parallel API
- * 2. Parallel processes for minutes to hours
- * 3. Parallel sends webhook updates -> We update database
- * 4. Frontend polls database every 5 seconds -> Shows progress
+ * 1. User submits URL -> Creates analysis record
+ * 2. processAnalysis runs (real or mock)
+ * 3. Database updated with status/progress
+ * 4. Frontend polls GET /api/analysis/:id to show progress
  */
 async function processAnalysis(analysisId) {
   try {
@@ -205,58 +218,19 @@ async function processAnalysis(analysisId) {
       },
     });
 
-    // Use mock analysis if Parallel API is not configured
+    // Use mock analysis if APIs are not configured
     if (USE_MOCK_ANALYSIS) {
-      console.log(`[Analysis] Using mock analysis for ${analysisId}`);
+      console.log(`[Analysis] Using MOCK analysis for ${analysisId}`);
       await runMockAnalysis(analysisId, analysis);
       return;
     }
 
-    // Call Parallel API to start the analysis
-    console.log(`[Analysis] Starting Parallel analysis for ${analysisId}`);
+    // Run REAL analysis with Parallel API + Anthropic Claude
+    console.log(`[Analysis] Starting REAL analysis for ${analysisId}`);
+    console.log(`[Analysis] Company: ${analysis.company.name} (${analysis.company.url})`);
 
-    const response = await fetch(`${PARALLEL_API_URL}/v1/runs`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PARALLEL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        workflow: 'company-analysis',
-        input: {
-          url: analysis.company.url,
-          domain: analysis.company.domain,
-          mode: analysis.mode,
-        },
-        metadata: {
-          analysisId: analysisId,
-          companyId: analysis.company.id,
-        },
-        webhook: {
-          url: `${WEBHOOK_BASE_URL}/api/webhooks/parallel`,
-          events: ['progress', 'completed', 'failed'],
-        },
-      }),
-    });
+    await processRealAnalysis(analysisId);
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Parallel API error: ${error}`);
-    }
-
-    const result = await response.json();
-    console.log(`[Analysis] Parallel run started: ${result.runId}`);
-
-    // Store the Parallel run ID for tracking
-    await prisma.analysis.update({
-      where: { id: analysisId },
-      data: {
-        config: {
-          ...analysis.config,
-          parallelRunId: result.runId,
-        },
-      },
-    });
   } catch (error) {
     console.error(`[Analysis] ${analysisId} failed:`, error);
     await prisma.analysis.update({
