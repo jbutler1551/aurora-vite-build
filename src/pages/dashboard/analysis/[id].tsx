@@ -290,8 +290,11 @@ export default function AnalysisPage() {
           </div>
           <div className={`mt-4 flex justify-between text-sm ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>
             <span>Started {analysis.startedAt ? new Date(analysis.startedAt).toLocaleString() : 'just now'}</span>
-            <span>Estimated: 5-10 minutes</span>
+            <span>Estimated: 1-2 hours (deep web research)</span>
           </div>
+          <p className={`mt-2 text-xs ${isDark ? 'text-white/40' : 'text-[#5C4A2A]/40'}`}>
+            Aurora performs comprehensive web research across multiple sources. Each phase involves real-time data gathering which takes 10-30 minutes per step. You can safely close this page and check back later.
+          </p>
         </div>
       )}
 
