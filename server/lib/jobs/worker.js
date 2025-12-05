@@ -127,11 +127,17 @@ async function waitForParallelTask(parallel, response, taskType) {
         ? await parallel.pollFindAllStatus(taskId)
         : await parallel.pollTaskStatus(taskId);
 
+      // Debug: log raw response structure on first poll
+      if (pollCount === 1) {
+        console.log(`[Parallel] ${taskType} first poll - raw response keys:`, Object.keys(status.data || {}));
+        console.log(`[Parallel] ${taskType} first poll - raw data:`, JSON.stringify(status.data, null, 2).substring(0, 500));
+      }
+
       // FindAll uses different completion signals
       if (isFindAll) {
         const isActive = status.data?.is_active;
         const areEnrichmentsActive = status.data?.are_enrichments_active;
-        const matchCount = status.data?.results?.length || 0;
+        const matchCount = status.data?.results?.length || status.data?.matches?.length || 0;
 
         console.log(`[Parallel] ${taskType} poll #${pollCount} (${elapsedMin}min): is_active=${isActive}, enrichments_active=${areEnrichmentsActive}, matches=${matchCount}`);
 
