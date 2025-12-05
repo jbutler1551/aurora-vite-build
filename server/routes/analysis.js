@@ -13,10 +13,12 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 // Use real analysis only when BOTH APIs are configured and mock is not forced
 const USE_MOCK_ANALYSIS = process.env.USE_MOCK_ANALYSIS === 'true' || !PARALLEL_API_KEY || !ANTHROPIC_API_KEY;
 
-// Log which mode we're using on startup
-console.log(`[Analysis] Mode: ${USE_MOCK_ANALYSIS ? 'MOCK' : 'REAL'}`);
-if (!PARALLEL_API_KEY) console.log('[Analysis] Missing PARALLEL_API_KEY - using mock mode');
-if (!ANTHROPIC_API_KEY) console.log('[Analysis] Missing ANTHROPIC_API_KEY - using mock mode');
+// Log which mode we're using on startup - VERY VISIBLE
+console.log('\n' + '='.repeat(60));
+console.log(`[Aurora] Analysis Mode: ${USE_MOCK_ANALYSIS ? '🔶 MOCK' : '🟢 REAL'}`);
+console.log(`[Aurora] Parallel API Key: ${PARALLEL_API_KEY ? '✓ configured' : '✗ MISSING'}`);
+console.log(`[Aurora] Anthropic API Key: ${ANTHROPIC_API_KEY ? '✓ configured' : '✗ MISSING'}`);
+console.log('='.repeat(60) + '\n');
 
 // Create analysis
 router.post('/', authMiddleware, async (req, res) => {
@@ -82,8 +84,15 @@ router.post('/', authMiddleware, async (req, res) => {
     });
 
     // Start analysis processing (synchronous for Replit compatibility)
+    console.log('\n' + '*'.repeat(60));
+    console.log(`[Aurora] 🚀 NEW ANALYSIS REQUEST RECEIVED`);
+    console.log(`[Aurora] Analysis ID: ${analysis.id}`);
+    console.log(`[Aurora] Company: ${company.name} (${company.domain})`);
+    console.log(`[Aurora] Mode: ${USE_MOCK_ANALYSIS ? 'MOCK' : 'REAL'}`);
+    console.log('*'.repeat(60) + '\n');
+
     processAnalysis(analysis.id).catch(err => {
-      console.error('Analysis processing failed:', err);
+      console.error('[Aurora] ❌ Analysis processing failed:', err);
     });
 
     res.json({
@@ -220,14 +229,23 @@ async function processAnalysis(analysisId) {
 
     // Use mock analysis if APIs are not configured
     if (USE_MOCK_ANALYSIS) {
-      console.log(`[Analysis] Using MOCK analysis for ${analysisId}`);
+      console.log('\n' + '-'.repeat(50));
+      console.log(`[Aurora] 🔶 RUNNING MOCK ANALYSIS`);
+      console.log(`[Aurora] Analysis ID: ${analysisId}`);
+      console.log('-'.repeat(50) + '\n');
       await runMockAnalysis(analysisId, analysis);
       return;
     }
 
     // Run REAL analysis with Parallel API + Anthropic Claude
-    console.log(`[Analysis] Starting REAL analysis for ${analysisId}`);
-    console.log(`[Analysis] Company: ${analysis.company.name} (${analysis.company.url})`);
+    console.log('\n' + '-'.repeat(50));
+    console.log(`[Aurora] 🟢 RUNNING REAL ANALYSIS`);
+    console.log(`[Aurora] Analysis ID: ${analysisId}`);
+    console.log(`[Aurora] Company: ${analysis.company.name}`);
+    console.log(`[Aurora] URL: ${analysis.company.url}`);
+    console.log(`[Aurora] Parallel API: ${PARALLEL_API_KEY ? 'configured' : 'MISSING'}`);
+    console.log(`[Aurora] Anthropic API: ${ANTHROPIC_API_KEY ? 'configured' : 'MISSING'}`);
+    console.log('-'.repeat(50) + '\n');
 
     await processRealAnalysis(analysisId);
 
