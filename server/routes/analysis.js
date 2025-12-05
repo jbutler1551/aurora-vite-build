@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authMiddleware } from './auth.js';
 import { processRealAnalysis } from '../lib/jobs/worker.js';
 import { activityEmitter, getActivityLog } from '../lib/activity-log.js';
+import { generateAnalysisPDF } from '../lib/pdf-generator.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -232,6 +233,52 @@ router.get('/:id/activity-stream', authMiddleware, (req, res) => {
     activityEmitter.off(`activity:${id}`, onActivity);
     clearInterval(heartbeat);
   });
+});
+
+// Export analysis as PDF
+router.get('/:id/export-pdf', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    const analysis = await prisma.analysis.findFirst({
+      where: {
+        id,
+        teamId: user.teamId,
+      },
+      include: {
+        company: true,
+      },
+    });
+
+    if (!analysis) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+
+    if (analysis.status !== 'COMPLETED') {
+      return res.status(400).json({ error: 'Analysis is not complete' });
+    }
+
+    // Generate PDF
+    const pdfDoc = generateAnalysisPDF(analysis);
+
+    // Set response headers for PDF download
+    const filename = `Aurora-Report-${analysis.company.name.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Pipe the PDF to response
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+
+  } catch (error) {
+    console.error('Export PDF error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
 });
 
 /**

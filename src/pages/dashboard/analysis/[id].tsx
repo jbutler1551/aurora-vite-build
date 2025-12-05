@@ -96,13 +96,20 @@ interface CompetitiveAnalysis {
   recommendations?: string[];
 }
 
+interface ConversationHook {
+  openingQuestion?: string;
+  followUp?: string;
+  expectedResponse?: string;
+  credibilityDetail?: string;
+}
+
 interface Opportunity {
   rank: number;
   title: string;
   category: string;
   problem?: { description: string };
   evidenceStrength?: { score: number };
-  conversationHook?: string;
+  conversationHook?: string | ConversationHook;
   proposedSolution?: string;
   expectedOutcome?: string;
   evidence?: string[];
@@ -192,6 +199,7 @@ export default function AnalysisPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('cheatsheet');
+  const [exportingPdf, setExportingPdf] = useState(false);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -210,6 +218,46 @@ export default function AnalysisPage() {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!id || exportingPdf) return;
+
+    setExportingPdf(true);
+    try {
+      const response = await fetch(`${API_URL}/api/analysis/${id}/export-pdf`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to export PDF');
+      }
+
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `Aurora-Report-${analysis?.company?.name || 'Analysis'}.pdf`;
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) filename = match[1];
+      }
+
+      // Download the PDF
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Export PDF error:', err);
+      alert(err instanceof Error ? err.message : 'Failed to export PDF');
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -311,13 +359,20 @@ export default function AnalysisPage() {
         <div className="flex items-center gap-2">
           {isComplete && (
             <>
-              <button className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
-                isDark
-                  ? 'border-white/20 text-white/70 hover:bg-white/10 hover:text-cyan-400'
-                  : 'border-[#5C4A2A]/20 text-[#5C4A2A] hover:bg-[#5C4A2A]/5'
-              }`}>
-                <Download className="h-4 w-4" />
-                Export PDF
+              <button
+                onClick={handleExportPdf}
+                disabled={exportingPdf}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+                  isDark
+                    ? 'border-white/20 text-white/70 hover:bg-white/10 hover:text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed'
+                    : 'border-[#5C4A2A]/20 text-[#5C4A2A] hover:bg-[#5C4A2A]/5 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}>
+                {exportingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {exportingPdf ? 'Generating...' : 'Export PDF'}
               </button>
               <button className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                 isDark
@@ -1348,12 +1403,49 @@ function OpportunitiesSection({ opportunities, isDark }: { opportunities?: Analy
           {/* Conversation Hook */}
           {opp.conversationHook && (
             <div className={`p-3 rounded-xl mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white/70 border border-[#5C4A2A]/10'}`}>
-              <p className={`text-xs uppercase tracking-wide mb-1 ${isDark ? 'text-cyan-400' : 'text-violet-600'}`}>
+              <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-cyan-400' : 'text-violet-600'}`}>
                 Conversation Hook
               </p>
-              <p className={`italic text-sm ${isDark ? 'text-white/80' : 'text-[#5C4A2A]'}`}>
-                "{opp.conversationHook}"
-              </p>
+              {typeof opp.conversationHook === 'string' ? (
+                <p className={`italic text-sm ${isDark ? 'text-white/80' : 'text-[#5C4A2A]'}`}>
+                  "{opp.conversationHook}"
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {opp.conversationHook.openingQuestion && (
+                    <div>
+                      <p className={`text-xs font-medium mb-1 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Opening Question</p>
+                      <p className={`italic text-sm ${isDark ? 'text-white/80' : 'text-[#5C4A2A]'}`}>
+                        "{opp.conversationHook.openingQuestion}"
+                      </p>
+                    </div>
+                  )}
+                  {opp.conversationHook.followUp && (
+                    <div>
+                      <p className={`text-xs font-medium mb-1 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Follow-up</p>
+                      <p className={`italic text-sm ${isDark ? 'text-white/80' : 'text-[#5C4A2A]'}`}>
+                        "{opp.conversationHook.followUp}"
+                      </p>
+                    </div>
+                  )}
+                  {opp.conversationHook.expectedResponse && (
+                    <div>
+                      <p className={`text-xs font-medium mb-1 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Expected Response</p>
+                      <p className={`text-sm ${isDark ? 'text-white/70' : 'text-[#5C4A2A]/80'}`}>
+                        {opp.conversationHook.expectedResponse}
+                      </p>
+                    </div>
+                  )}
+                  {opp.conversationHook.credibilityDetail && (
+                    <div>
+                      <p className={`text-xs font-medium mb-1 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Credibility Detail</p>
+                      <p className={`text-sm ${isDark ? 'text-white/70' : 'text-[#5C4A2A]/80'}`}>
+                        {opp.conversationHook.credibilityDetail}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
