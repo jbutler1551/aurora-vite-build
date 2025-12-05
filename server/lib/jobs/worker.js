@@ -134,10 +134,12 @@ async function waitForParallelTask(parallel, response, taskType) {
       }
 
       // FindAll uses different completion signals
+      // Note: is_active is nested inside status.status for FindAll API
       if (isFindAll) {
-        const isActive = status.data?.is_active;
-        const areEnrichmentsActive = status.data?.are_enrichments_active;
-        const matchCount = status.data?.results?.length || status.data?.matches?.length || 0;
+        const statusObj = status.data?.status || {};
+        const isActive = statusObj.is_active ?? status.data?.is_active;
+        const areEnrichmentsActive = statusObj.are_enrichments_active ?? status.data?.are_enrichments_active;
+        const matchCount = statusObj.metrics?.matched_candidates_count || status.data?.results?.length || status.data?.matches?.length || 0;
 
         console.log(`[Parallel] ${taskType} poll #${pollCount} (${elapsedMin}min): is_active=${isActive}, enrichments_active=${areEnrichmentsActive}, matches=${matchCount}`);
 
