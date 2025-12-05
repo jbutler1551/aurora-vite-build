@@ -22,13 +22,12 @@ const isProduction = process.env.NODE_ENV === 'production';
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS - only needed in development when using separate Vite dev server
-if (!isProduction) {
-  app.use(cors({
-    origin: 'http://localhost:5173',
-    credentials: true,
-  }));
-}
+// CORS - needed in development when using separate Vite dev server
+// Also enable for Replit's proxied requests
+app.use(cors({
+  origin: isProduction ? true : ['http://localhost:5000', 'http://localhost:5173', 'http://localhost:3001'],
+  credentials: true,
+}));
 
 // Health check endpoint (critical for Replit)
 app.get('/health', (req, res) => {

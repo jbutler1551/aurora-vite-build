@@ -1,5 +1,6 @@
 run = "npm run start"
 entrypoint = "server/index.js"
+modules = ["nodejs-20"]
 
 [nix]
 channel = "stable-24_05"
@@ -12,9 +13,45 @@ PORT = "3001"
 localPort = 3001
 externalPort = 80
 
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5173
+externalPort = 5173
+
+[[ports]]
+localPort = 38937
+externalPort = 3000
+
 [deployment]
 run = ["sh", "-c", "npm run start"]
 build = ["sh", "-c", "npm install && npm run build && npm run db:generate"]
 
 [agent]
 expertMode = true
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Dev Server"
+
+[[workflows.workflow]]
+name = "Dev Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
