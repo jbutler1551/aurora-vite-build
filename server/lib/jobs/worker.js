@@ -143,8 +143,10 @@ async function waitForParallelTask(parallel, response, taskType) {
 
         console.log(`[Parallel] ${taskType} poll #${pollCount} (${elapsedMin}min): is_active=${isActive}, enrichments_active=${areEnrichmentsActive}, matches=${matchCount}`);
 
-        // FindAll is complete when both is_active and are_enrichments_active are false
-        if (isActive === false && areEnrichmentsActive === false) {
+        // FindAll is complete when is_active=false AND enrichments are done (false or not present)
+        // If are_enrichments_active is undefined/null, treat it as not running (complete)
+        const enrichmentsDone = areEnrichmentsActive === false || areEnrichmentsActive === undefined || areEnrichmentsActive === null;
+        if (isActive === false && enrichmentsDone) {
           console.log(`[Parallel] ✓ ${taskType} COMPLETED after ${elapsedMin} minutes with ${matchCount} matches`);
           return status.data;
         }
