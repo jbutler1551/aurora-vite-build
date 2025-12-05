@@ -11,6 +11,7 @@ import {
   buildCaseStudyQuery,
   COMPETITOR_ENRICHMENT_FIELDS,
 } from '../parallel/queries.js';
+import { logActivity, logMilestone, logSuccess, logError } from '../activity-log.js';
 
 const prisma = new PrismaClient();
 
@@ -54,6 +55,9 @@ async function updateProgress(analysisId, phase, step, substep = null) {
       updatedAt: new Date(),
     },
   });
+
+  // Emit activity log event for live feed (message will be sanitized)
+  await logActivity(analysisId, `${progress}% - ${step}`, { phase });
 }
 
 /**
@@ -600,12 +604,17 @@ export async function processRealAnalysis(analysisId) {
     console.log(`[${analysisId}] URL: ${companyUrl}`);
     console.log(`${'='.repeat(60)}\n`);
 
+    // Log analysis start
+    await logMilestone(analysisId, `Starting analysis for ${companyName}`);
+
     // ========== PHASE 1: EXTRACT ==========
     console.log(`\n--- PHASE 1: EXTRACT ---`);
+    await logMilestone(analysisId, 'Phase 1: Extracting website content', 'PHASE_1_EXTRACT');
     const phase1Result = await phase1Extract(analysisId, companyUrl, companyName, parallel, claude);
 
     // ========== PHASE 2: DEEP RESEARCH ==========
     console.log(`\n--- PHASE 2: DEEP RESEARCH ---`);
+    await logMilestone(analysisId, 'Phase 2: Deep company research', 'PHASE_2_DEEP_RESEARCH');
     const phase2Result = await phase2DeepResearch(
       analysisId,
       companyUrl,
@@ -614,9 +623,11 @@ export async function processRealAnalysis(analysisId) {
       parallel,
       claude
     );
+    await logSuccess(analysisId, 'Company profile built successfully', 'PHASE_2_DEEP_RESEARCH');
 
     // ========== PHASE 3: COMPETITOR DISCOVERY ==========
     console.log(`\n--- PHASE 3: COMPETITOR DISCOVERY ---`);
+    await logMilestone(analysisId, 'Phase 3: Discovering competitors', 'PHASE_3_COMPETITOR_DISCOVERY');
     const phase3Result = await phase3CompetitorDiscovery(
       analysisId,
       companyName,
@@ -624,9 +635,11 @@ export async function processRealAnalysis(analysisId) {
       parallel,
       claude
     );
+    await logSuccess(analysisId, `Found ${phase3Result.allCompetitors.length} competitors`, 'PHASE_3_COMPETITOR_DISCOVERY');
 
     // ========== PHASE 4: COMPETITOR ANALYSIS ==========
     console.log(`\n--- PHASE 4: COMPETITOR ANALYSIS ---`);
+    await logMilestone(analysisId, 'Phase 4: Analyzing competitors', 'PHASE_4_COMPETITOR_ANALYSIS');
     const phase4Result = await phase4CompetitorAnalysis(
       analysisId,
       phase2Result.companyProfile,
@@ -635,9 +648,11 @@ export async function processRealAnalysis(analysisId) {
       claude,
       config
     );
+    await logSuccess(analysisId, 'Competitive analysis complete', 'PHASE_4_COMPETITOR_ANALYSIS');
 
     // ========== PHASE 5: SWOT & REPORT ==========
     console.log(`\n--- PHASE 5: SWOT & REPORT ---`);
+    await logMilestone(analysisId, 'Phase 5: Building SWOT analysis', 'PHASE_5_SWOT_REPORT');
     const phase5Result = await phase5SwotAndReport(
       analysisId,
       phase2Result.companyProfile,
@@ -647,9 +662,11 @@ export async function processRealAnalysis(analysisId) {
       claude,
       config
     );
+    await logSuccess(analysisId, 'SWOT analysis complete', 'PHASE_5_SWOT_REPORT');
 
     // ========== PHASE 6: TALK TRACKS ==========
     console.log(`\n--- PHASE 6: TALK TRACKS ---`);
+    await logMilestone(analysisId, 'Phase 6: Generating sales insights', 'PHASE_6_TALK_TRACKS');
     const phase6Result = await phase6TalkTracks(
       analysisId,
       phase2Result.companyProfile,
@@ -657,6 +674,7 @@ export async function processRealAnalysis(analysisId) {
       phase4Result.competitiveAnalysis,
       claude
     );
+    await logSuccess(analysisId, 'Cheat sheet generated', 'PHASE_6_TALK_TRACKS');
 
     // ========== COMPLETE ==========
     const totalCost = phase1Result.cost + phase2Result.cost + phase3Result.cost +
@@ -679,9 +697,14 @@ export async function processRealAnalysis(analysisId) {
     console.log(`[${analysisId}] Total Parallel API Cost: $${totalCost.toFixed(2)}`);
     console.log(`${'='.repeat(60)}\n`);
 
+    await logSuccess(analysisId, `Analysis complete! Total cost: $${totalCost.toFixed(2)}`);
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`\n[${analysisId}] PIPELINE FAILED:`, error);
+
+    // Log the error to activity feed
+    await logError(analysisId, `Analysis failed: ${errorMessage}`);
 
     await prisma.analysis.update({
       where: { id: analysisId },

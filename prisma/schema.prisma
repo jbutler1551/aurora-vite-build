@@ -77,6 +77,7 @@ model Analysis {
   cheatSheet                 Json?
   fullReport                 Json?
   errorLog                   Json?
+  activityLog                Json?
   totalCostUSD               Float?
   startedAt                  DateTime?
   completedAt                DateTime?

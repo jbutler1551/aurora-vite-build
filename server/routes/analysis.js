@@ -2,6 +2,7 @@ import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authMiddleware } from './auth.js';
 import { processRealAnalysis } from '../lib/jobs/worker.js';
+import { activityEmitter, getActivityLog } from '../lib/activity-log.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -185,6 +186,52 @@ router.get('/', authMiddleware, async (req, res) => {
     console.error('List analyses error:', error);
     res.status(500).json({ error: 'Failed to list analyses' });
   }
+});
+
+// Get activity log for analysis
+router.get('/:id/activity', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const log = await getActivityLog(id);
+    res.json({ log });
+  } catch (error) {
+    console.error('Get activity log error:', error);
+    res.status(500).json({ error: 'Failed to get activity log' });
+  }
+});
+
+// SSE endpoint for live activity stream
+router.get('/:id/activity-stream', authMiddleware, (req, res) => {
+  const { id } = req.params;
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+  res.flushHeaders();
+
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected', analysisId: id })}\n\n`);
+
+  // Listener for activity events
+  const onActivity = (logEntry) => {
+    res.write(`data: ${JSON.stringify(logEntry)}\n\n`);
+  };
+
+  // Subscribe to activity events for this analysis
+  activityEmitter.on(`activity:${id}`, onActivity);
+
+  // Send heartbeat every 30 seconds to keep connection alive
+  const heartbeat = setInterval(() => {
+    res.write(`: heartbeat\n\n`);
+  }, 30000);
+
+  // Cleanup on disconnect
+  req.on('close', () => {
+    activityEmitter.off(`activity:${id}`, onActivity);
+    clearInterval(heartbeat);
+  });
 });
 
 /**

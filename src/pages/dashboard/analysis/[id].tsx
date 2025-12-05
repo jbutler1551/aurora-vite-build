@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useTheme } from '../../../lib/theme-context';
+import LiveActivityFeed from '../../../components/LiveActivityFeed';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -462,40 +463,45 @@ export default function AnalysisPage() {
 
       {/* In Progress - Phase Overview */}
       {isInProgress && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <PhaseCard
-            phase={1}
-            title="Company Deep Dive"
-            description="Extracting and researching company information"
-            icon={Building2}
-            currentPhase={phaseInfo.phase}
-            isDark={isDark}
-          />
-          <PhaseCard
-            phase={2}
-            title="Competitive Landscape"
-            description="Discovering and analyzing competitors"
-            icon={Users}
-            currentPhase={phaseInfo.phase}
-            isDark={isDark}
-          />
-          <PhaseCard
-            phase={3}
-            title="Opportunity Mapping"
-            description="Identifying opportunities and scoring readiness"
-            icon={Target}
-            currentPhase={phaseInfo.phase}
-            isDark={isDark}
-          />
-          <PhaseCard
-            phase={4}
-            title="Generating Outputs"
-            description="Creating cheat sheet and reports"
-            icon={Lightbulb}
-            currentPhase={phaseInfo.phase}
-            isDark={isDark}
-          />
-        </div>
+        <>
+          <div className="grid gap-4 md:grid-cols-4">
+            <PhaseCard
+              phase={1}
+              title="Company Deep Dive"
+              description="Extracting and researching company information"
+              icon={Building2}
+              currentPhase={phaseInfo.phase}
+              isDark={isDark}
+            />
+            <PhaseCard
+              phase={2}
+              title="Competitive Landscape"
+              description="Discovering and analyzing competitors"
+              icon={Users}
+              currentPhase={phaseInfo.phase}
+              isDark={isDark}
+            />
+            <PhaseCard
+              phase={3}
+              title="Opportunity Mapping"
+              description="Identifying opportunities and scoring readiness"
+              icon={Target}
+              currentPhase={phaseInfo.phase}
+              isDark={isDark}
+            />
+            <PhaseCard
+              phase={4}
+              title="Generating Outputs"
+              description="Creating cheat sheet and reports"
+              icon={Lightbulb}
+              currentPhase={phaseInfo.phase}
+              isDark={isDark}
+            />
+          </div>
+
+          {/* Live Activity Feed */}
+          <LiveActivityFeed analysisId={analysis.id} isActive={isInProgress} />
+        </>
       )}
     </div>
   );
