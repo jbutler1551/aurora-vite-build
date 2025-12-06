@@ -97,7 +97,7 @@ async function saveToAuroraCore(analysisId, field, data, costUSD = 0) {
  * - are_enrichments_active: whether enrichments are still running
  * - Complete when BOTH are false
  */
-async function waitForParallelTask(parallel, response, taskType) {
+async function waitForParallelTask(parallel, response, taskType, analysisId = null) {
   // Detect if this is a FindAll task (uses findall_id)
   const isFindAll = taskType.toLowerCase().includes('findall');
 
@@ -124,6 +124,20 @@ async function waitForParallelTask(parallel, response, taskType) {
   while (Date.now() - startTime < maxWait) {
     pollCount++;
     const elapsedMin = Math.round((Date.now() - startTime) / 60000);
+    const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+
+    // Log heartbeat to activity feed every 30 seconds (every 3 polls) to show progress
+    if (analysisId && pollCount % 3 === 0) {
+      const heartbeatMessages = [
+        `Researching... (${elapsedMin > 0 ? elapsedMin + ' min' : elapsedSec + 's'} elapsed)`,
+        `Still gathering data... (${elapsedMin > 0 ? elapsedMin + ' min' : elapsedSec + 's'})`,
+        `Deep research in progress... (${elapsedMin > 0 ? elapsedMin + ' min' : elapsedSec + 's'})`,
+        `Analyzing sources... (${elapsedMin > 0 ? elapsedMin + ' min' : elapsedSec + 's'})`,
+        `Processing research data... (${elapsedMin > 0 ? elapsedMin + ' min' : elapsedSec + 's'})`,
+      ];
+      const msg = heartbeatMessages[Math.floor(pollCount / 3) % heartbeatMessages.length];
+      await logActivity(analysisId, msg, { raw: true });
+    }
 
     try {
       // Use the appropriate polling method based on task type
@@ -206,7 +220,7 @@ async function phase1Extract(analysisId, companyUrl, companyName, parallel, clau
 
   // Wait for Extract to complete
   await updateProgress(analysisId, 'PHASE_1_EXTRACT', 'Waiting for extraction to complete...', 0.4);
-  const extractedContent = await waitForParallelTask(parallel, extractResponse, 'Extract');
+  const extractedContent = await waitForParallelTask(parallel, extractResponse, 'Extract', analysisId);
 
   // Step 1.2: Save extracted content to Aurora Core
   await updateProgress(analysisId, 'PHASE_1_EXTRACT', 'Saving to Aurora Core...', 0.6);
@@ -263,7 +277,7 @@ async function phase2DeepResearch(analysisId, companyUrl, companyName, extracted
 
   // Wait for deep research to complete
   await updateProgress(analysisId, 'PHASE_2_DEEP_RESEARCH', 'Waiting for deep research to complete...', 0.4);
-  const companyResearch = await waitForParallelTask(parallel, researchResponse, 'Deep Research');
+  const companyResearch = await waitForParallelTask(parallel, researchResponse, 'Deep Research', analysisId);
 
   // Step 2.2: Save to Aurora Core
   await updateProgress(analysisId, 'PHASE_2_DEEP_RESEARCH', 'Saving research to Aurora Core...', 0.6);
@@ -313,7 +327,7 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
 
   // Wait for regional discovery
   await updateProgress(analysisId, 'PHASE_3_COMPETITOR_DISCOVERY', 'Waiting for regional competitor discovery...', 0.3);
-  const regionalCompetitors = await waitForParallelTask(parallel, regionalResponse, 'Regional FindAll');
+  const regionalCompetitors = await waitForParallelTask(parallel, regionalResponse, 'Regional FindAll', analysisId);
 
   // Save to Aurora Core
   await saveToAuroraCore(analysisId, 'regionalCompetitorDiscovery', regionalCompetitors, totalCost);
@@ -335,7 +349,7 @@ async function phase3CompetitorDiscovery(analysisId, companyName, companyProfile
 
   // Wait for global discovery
   await updateProgress(analysisId, 'PHASE_3_COMPETITOR_DISCOVERY', 'Waiting for global competitor discovery...', 0.7);
-  const globalCompetitors = await waitForParallelTask(parallel, globalResponse, 'Global FindAll');
+  const globalCompetitors = await waitForParallelTask(parallel, globalResponse, 'Global FindAll', analysisId);
 
   // Save to Aurora Core
   await saveToAuroraCore(analysisId, 'globalCompetitorDiscovery', globalCompetitors, totalCost);
@@ -383,7 +397,7 @@ async function phase4CompetitorAnalysis(analysisId, companyProfile, allCompetito
     totalCost += enrichResponse.estimatedCostUSD;
 
     await updateProgress(analysisId, 'PHASE_4_COMPETITOR_ANALYSIS', 'Waiting for enrichment...', 0.2);
-    enrichedCompetitors = await waitForParallelTask(parallel, enrichResponse, 'Enrich');
+    enrichedCompetitors = await waitForParallelTask(parallel, enrichResponse, 'Enrich', analysisId);
   }
 
   // Save to Aurora Core
@@ -412,7 +426,7 @@ async function phase4CompetitorAnalysis(analysisId, companyProfile, allCompetito
       );
       totalCost += deepDiveResponse.estimatedCostUSD;
 
-      const deepDiveResult = await waitForParallelTask(parallel, deepDiveResponse, `Competitor ${compName}`);
+      const deepDiveResult = await waitForParallelTask(parallel, deepDiveResponse, `Competitor ${compName}`, analysisId);
       competitorDeepDives.push({
         competitor: comp?.originalEntity || comp,
         research: deepDiveResult,
@@ -467,7 +481,7 @@ async function phase5SwotAndReport(analysisId, companyProfile, competitiveAnalys
   );
   totalCost += trendsResponse.estimatedCostUSD;
 
-  const industryTrends = await waitForParallelTask(parallel, trendsResponse, 'Industry Trends');
+  const industryTrends = await waitForParallelTask(parallel, trendsResponse, 'Industry Trends', analysisId);
   await saveToAuroraCore(analysisId, 'industryTrendsResearch', industryTrends, totalCost);
 
   // Step 5.2: Research competitor technology
@@ -484,7 +498,7 @@ async function phase5SwotAndReport(analysisId, companyProfile, competitiveAnalys
   );
   totalCost += techResponse.estimatedCostUSD;
 
-  const competitorTech = await waitForParallelTask(parallel, techResponse, 'Competitor Tech');
+  const competitorTech = await waitForParallelTask(parallel, techResponse, 'Competitor Tech', analysisId);
   await saveToAuroraCore(analysisId, 'competitorTechResearch', competitorTech, totalCost);
 
   // Step 5.3: Case studies (if full mode)
@@ -498,7 +512,7 @@ async function phase5SwotAndReport(analysisId, companyProfile, competitiveAnalys
     );
     totalCost += caseStudyResponse.estimatedCostUSD;
 
-    caseStudies = await waitForParallelTask(parallel, caseStudyResponse, 'Case Studies');
+    caseStudies = await waitForParallelTask(parallel, caseStudyResponse, 'Case Studies', analysisId);
     await saveToAuroraCore(analysisId, 'caseStudyResearch', caseStudies, totalCost);
   }
 
