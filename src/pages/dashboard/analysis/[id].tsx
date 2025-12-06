@@ -51,13 +51,22 @@ interface CheatSheet {
     headquarters: string;
     techMaturity: string;
     techMaturityNote?: string;
+    parentCompany?: string;
   };
+  // Key context from research
+  keyContext?: Array<{
+    topic: string;
+    explanation: string;
+    source: string;
+    whyItMatters?: string;
+  }>;
   topOpportunity?: CheatSheetOpportunity;
   backupOpportunity1?: CheatSheetOpportunity;
   backupOpportunity2?: CheatSheetOpportunity;
   objectionHandlers?: Array<{
     objection: string;
     response: string;
+    specificEvidence?: string;
   }>;
   differentiationPitch?: {
     whyUs: string;
@@ -68,7 +77,17 @@ interface CheatSheet {
     source: string;
     context: string;
   }>;
-  doNotMention?: string[];
+  // Industry terms glossary
+  industryTermsGlossary?: Array<{
+    term: string;
+    definition: string;
+    relevance?: string;
+  }>;
+  // Do Not Mention with reasons
+  doNotMention?: Array<{
+    topic: string;
+    reason: string;
+  }> | string[];
   // Legacy structure (from mock data)
   summary?: string;
   keyOpportunities?: string[];
@@ -134,8 +153,15 @@ interface CompanyProfile {
     headquarters?: string;
     description?: string;
   };
+  // Parent company information
+  parentCompany?: {
+    name?: string;
+    relationship?: string;
+    implications?: string;
+  } | null;
   technologySignals?: {
     techMaturity?: string;
+    techMaturityEvidence?: string;
     currentTechStack?: string[];
   };
   painPointIndicators?: Array<{
@@ -143,6 +169,36 @@ interface CompanyProfile {
     source: string;
     confidence: string;
   }>;
+  // New enhanced data fields
+  socialMediaPresence?: {
+    platforms?: string[];
+    linkedInFollowers?: string;
+    twitterFollowers?: string;
+    recentActivity?: string;
+  };
+  recentPress?: Array<{
+    headline: string;
+    source: string;
+    date?: string;
+    relevance?: string;
+  }>;
+  hiringSignals?: {
+    openRoles?: string[];
+    growthAreas?: string[];
+    techFocus?: string;
+  };
+  customerSignals?: {
+    reviewSentiment?: string;
+    commonPraise?: string[];
+    commonComplaints?: string[];
+    sources?: string[];
+  };
+  dataQuality?: {
+    overallConfidence?: string;
+    strongDataAreas?: string[];
+    weakDataAreas?: string[];
+    recommendedFollowUp?: string[];
+  };
 }
 
 interface Analysis {
@@ -669,6 +725,13 @@ function CheatSheetSection({ cheatSheet, isDark }: { cheatSheet?: CheatSheet; is
             <Building2 className={`h-5 w-5 ${isDark ? 'text-cyan-400' : 'text-violet-600'}`} />
             Company Snapshot
           </h3>
+          {cheatSheet.companySnapshot.parentCompany && (
+            <div className={`mb-4 px-3 py-2 rounded-lg ${isDark ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-purple-100'}`}>
+              <p className={`text-sm font-medium ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
+                Subsidiary of {cheatSheet.companySnapshot.parentCompany}
+              </p>
+            </div>
+          )}
           <p className={`text-xl mb-4 ${isDark ? 'text-white/90' : 'text-[#3D3124]'}`}>
             {cheatSheet.companySnapshot.oneLiner}
           </p>
@@ -697,6 +760,76 @@ function CheatSheetSection({ cheatSheet, isDark }: { cheatSheet?: CheatSheet; is
               {cheatSheet.companySnapshot.techMaturityNote}
             </p>
           )}
+        </div>
+      )}
+
+      {/* Key Context - Important background for the conversation */}
+      {cheatSheet.keyContext && cheatSheet.keyContext.length > 0 && (
+        <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+            <Lightbulb className={`h-5 w-5 ${isDark ? 'text-cyan-400' : 'text-violet-600'}`} />
+            Key Context for Your Conversation
+          </h3>
+          <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/60'}`}>
+            Important background information to understand before calling
+          </p>
+          <div className="space-y-4">
+            {cheatSheet.keyContext.map((ctx, i) => (
+              <div key={i} className={`p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-slate-50 border border-slate-200'}`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className={`font-semibold mb-1 ${isDark ? 'text-cyan-400' : 'text-violet-700'}`}>
+                      {ctx.topic}
+                    </p>
+                    <p className={`text-sm mb-2 ${isDark ? 'text-white/80' : 'text-[#5C4A2A]'}`}>
+                      {ctx.explanation}
+                    </p>
+                    {ctx.whyItMatters && (
+                      <p className={`text-xs ${isDark ? 'text-amber-400/80' : 'text-amber-600'}`}>
+                        Why it matters: {ctx.whyItMatters}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className={`text-xs mt-2 ${isDark ? 'text-white/40' : 'text-[#5C4A2A]/40'}`}>
+                  Source: {ctx.source}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Industry Terms Glossary */}
+      {cheatSheet.industryTermsGlossary && cheatSheet.industryTermsGlossary.length > 0 && (
+        <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+            Industry Terms to Know
+          </h3>
+          <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/60'}`}>
+            Common terms they may use - understand these before the call
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {cheatSheet.industryTermsGlossary.map((item, i) => (
+              <div key={i} className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-slate-50'}`}>
+                <p className={`font-medium mb-1 ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+                  {item.term}
+                </p>
+                <p className={`text-sm ${isDark ? 'text-white/70' : 'text-[#5C4A2A]/80'}`}>
+                  {item.definition}
+                </p>
+                {item.relevance && (
+                  <p className={`text-xs mt-1 ${isDark ? 'text-cyan-400/70' : 'text-violet-600'}`}>
+                    {item.relevance}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -899,6 +1032,11 @@ function CheatSheetSection({ cheatSheet, isDark }: { cheatSheet?: CheatSheet; is
                   "{handler.objection}"
                 </p>
                 <p className={isDark ? 'text-white/80' : 'text-[#5C4A2A]'}>{handler.response}</p>
+                {handler.specificEvidence && (
+                  <p className={`mt-2 text-xs ${isDark ? 'text-cyan-400/70' : 'text-violet-600'}`}>
+                    Supporting evidence: {handler.specificEvidence}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -914,15 +1052,35 @@ function CheatSheetSection({ cheatSheet, isDark }: { cheatSheet?: CheatSheet; is
             <XCircle className="h-5 w-5" />
             Do Not Mention
           </h3>
-          <ul className="space-y-2">
-            {cheatSheet.doNotMention.map((item, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <span className={`text-sm ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/70'}`}>
-                  {item}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/60'}`}>
+            Topics to avoid in your conversation - each has a specific reason
+          </p>
+          <div className="space-y-3">
+            {cheatSheet.doNotMention.map((item, i) => {
+              // Handle both new format (object) and legacy format (string)
+              const isNewFormat = typeof item === 'object' && item !== null && 'topic' in item;
+              const topic = isNewFormat ? (item as { topic: string; reason: string }).topic : item as string;
+              const reason = isNewFormat ? (item as { topic: string; reason: string }).reason : null;
+
+              return (
+                <div key={i} className={`p-3 rounded-lg ${isDark ? 'bg-red-500/10' : 'bg-red-100/50'}`}>
+                  <div className="flex items-start gap-2">
+                    <XCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                    <div>
+                      <p className={`font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>
+                        {topic}
+                      </p>
+                      {reason && (
+                        <p className={`text-sm mt-1 ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/70'}`}>
+                          Why: {reason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -998,6 +1156,37 @@ function CompanyProfileSection({ profile, isDark }: { profile?: Analysis['compan
 
   return (
     <div className="space-y-6">
+      {/* Parent Company Alert - Show prominently if exists */}
+      {profile.parentCompany?.name && (
+        <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
+          isDark ? 'bg-purple-500/10 border-purple-500/20' : 'bg-purple-50 border-purple-200'
+        }`}>
+          <div className="flex items-start gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0 ${
+              isDark ? 'bg-purple-500/20' : 'bg-purple-100'
+            }`}>
+              <Building2 className={`h-5 w-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+            </div>
+            <div>
+              <h3 className={`text-lg font-semibold mb-1 ${isDark ? 'text-purple-300' : 'text-purple-800'}`}>
+                Subsidiary of {profile.parentCompany.name}
+              </h3>
+              {profile.parentCompany.relationship && (
+                <p className={`text-sm mb-2 ${isDark ? 'text-white/70' : 'text-purple-700'}`}>
+                  {profile.parentCompany.relationship}
+                </p>
+              )}
+              {profile.parentCompany.implications && (
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-purple-600'}`}>
+                  <span className="font-medium">Sales Implications:</span> {profile.parentCompany.implications}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Company Overview */}
       <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40'
       }`}>
@@ -1030,6 +1219,11 @@ function CompanyProfileSection({ profile, isDark }: { profile?: Analysis['compan
             }`}>
               {profile.technologySignals?.techMaturity || 'Unknown'}
             </span>
+            {profile.technologySignals?.techMaturityEvidence && (
+              <p className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>
+                {profile.technologySignals.techMaturityEvidence}
+              </p>
+            )}
           </div>
         </div>
         {profile.basics?.description && (
@@ -1040,6 +1234,186 @@ function CompanyProfileSection({ profile, isDark }: { profile?: Analysis['compan
         )}
       </div>
 
+      {/* Recent Press & News */}
+      {profile.recentPress && profile.recentPress.length > 0 && (
+        <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+            <ExternalLink className={`h-5 w-5 ${isDark ? 'text-cyan-400' : 'text-[#5C4A2A]'}`} />
+            Recent Press & News
+          </h3>
+          <div className="space-y-4">
+            {profile.recentPress.map((item, i) => (
+              <div key={i} className={`pb-4 border-b last:border-0 last:pb-0 ${isDark ? 'border-white/10' : 'border-[#5C4A2A]/10'}`}>
+                <p className={`font-medium ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>{item.headline}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-sm ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/60'}`}>{item.source}</span>
+                  {item.date && (
+                    <>
+                      <span className={isDark ? 'text-white/30' : 'text-[#5C4A2A]/30'}>•</span>
+                      <span className={`text-sm ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>{item.date}</span>
+                    </>
+                  )}
+                </div>
+                {item.relevance && (
+                  <p className={`text-xs mt-2 ${isDark ? 'text-cyan-400/70' : 'text-violet-600'}`}>
+                    Why it matters: {item.relevance}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Hiring Signals */}
+      {profile.hiringSignals && (profile.hiringSignals.openRoles?.length || profile.hiringSignals.growthAreas?.length) && (
+        <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
+          isDark ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50/50 border-emerald-200'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+            <Users className={`h-5 w-5`} />
+            Hiring Signals
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {profile.hiringSignals.openRoles && profile.hiringSignals.openRoles.length > 0 && (
+              <div>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Open Roles</p>
+                <div className="flex flex-wrap gap-2">
+                  {profile.hiringSignals.openRoles.map((role, i) => (
+                    <span key={i} className={`px-2 py-1 rounded text-xs ${
+                      isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {profile.hiringSignals.growthAreas && profile.hiringSignals.growthAreas.length > 0 && (
+              <div>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Growth Areas</p>
+                <div className="flex flex-wrap gap-2">
+                  {profile.hiringSignals.growthAreas.map((area, i) => (
+                    <span key={i} className={`px-2 py-1 rounded text-xs ${
+                      isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-700'
+                    }`}>
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {profile.hiringSignals.techFocus && (
+            <p className={`mt-3 text-sm ${isDark ? 'text-white/70' : 'text-[#5C4A2A]'}`}>
+              <span className="font-medium">Tech Focus:</span> {profile.hiringSignals.techFocus}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Social Media Presence */}
+      {profile.socialMediaPresence && profile.socialMediaPresence.platforms?.length && (
+        <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+            Social Media Presence
+          </h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Platforms</p>
+              <div className="flex flex-wrap gap-2">
+                {profile.socialMediaPresence.platforms.map((platform, i) => (
+                  <span key={i} className={`px-2 py-1 rounded text-xs ${
+                    isDark ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {platform}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {profile.socialMediaPresence.linkedInFollowers && (
+              <div>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>LinkedIn</p>
+                <p className={`font-medium ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+                  {profile.socialMediaPresence.linkedInFollowers} followers
+                </p>
+              </div>
+            )}
+            {profile.socialMediaPresence.twitterFollowers && (
+              <div>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>Twitter/X</p>
+                <p className={`font-medium ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+                  {profile.socialMediaPresence.twitterFollowers} followers
+                </p>
+              </div>
+            )}
+          </div>
+          {profile.socialMediaPresence.recentActivity && (
+            <p className={`mt-3 text-sm ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/60'}`}>
+              {profile.socialMediaPresence.recentActivity}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Customer Signals */}
+      {profile.customerSignals && (profile.customerSignals.commonPraise?.length || profile.customerSignals.commonComplaints?.length) && (
+        <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+            Customer Signals
+          </h3>
+          {profile.customerSignals.reviewSentiment && (
+            <p className={`mb-4 ${isDark ? 'text-white/80' : 'text-[#5C4A2A]'}`}>
+              <span className="font-medium">Overall Sentiment:</span> {profile.customerSignals.reviewSentiment}
+            </p>
+          )}
+          <div className="grid gap-4 md:grid-cols-2">
+            {profile.customerSignals.commonPraise && profile.customerSignals.commonPraise.length > 0 && (
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  What Customers Love
+                </p>
+                <ul className="space-y-1">
+                  {profile.customerSignals.commonPraise.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <CheckCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                      <span className={`text-sm ${isDark ? 'text-white/80' : 'text-[#5C4A2A]'}`}>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {profile.customerSignals.commonComplaints && profile.customerSignals.commonComplaints.length > 0 && (
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                  Common Pain Points
+                </p>
+                <ul className="space-y-1">
+                  {profile.customerSignals.commonComplaints.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <Target className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                      <span className={`text-sm ${isDark ? 'text-white/80' : 'text-[#5C4A2A]'}`}>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          {profile.customerSignals.sources && profile.customerSignals.sources.length > 0 && (
+            <p className={`mt-3 text-xs ${isDark ? 'text-white/40' : 'text-[#5C4A2A]/40'}`}>
+              Sources: {profile.customerSignals.sources.join(', ')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Pain Point Indicators */}
       {profile.painPointIndicators && profile.painPointIndicators.length > 0 && (
         <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
           isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40'
@@ -1058,13 +1432,88 @@ function CompanyProfileSection({ profile, isDark }: { profile?: Analysis['compan
                   Source: {indicator.source}
                 </p>
                 <span className={`inline-block mt-2 px-2 py-1 rounded text-xs border ${
-                  isDark ? 'border-white/20 text-white/70' : 'border-[#5C4A2A]/20 text-[#5C4A2A]/70'
+                  indicator.confidence === 'high'
+                    ? isDark ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-100 border-emerald-200 text-emerald-700'
+                    : indicator.confidence === 'medium'
+                      ? isDark ? 'bg-amber-500/20 border-amber-500/30 text-amber-400' : 'bg-amber-100 border-amber-200 text-amber-700'
+                      : isDark ? 'border-white/20 text-white/70' : 'border-[#5C4A2A]/20 text-[#5C4A2A]/70'
                 }`}>
                   {indicator.confidence} confidence
                 </span>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Data Quality Indicator */}
+      {profile.dataQuality && (
+        <div className={`rounded-2xl backdrop-blur-xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-[#3D3124]'}`}>
+            <Lightbulb className={`h-5 w-5 ${isDark ? 'text-cyan-400' : 'text-[#5C4A2A]'}`} />
+            Data Quality Assessment
+          </h3>
+          {profile.dataQuality.overallConfidence && (
+            <div className="mb-4">
+              <span className={`inline-block px-3 py-1 rounded-lg text-sm font-medium ${
+                profile.dataQuality.overallConfidence === 'high'
+                  ? isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-700'
+                  : profile.dataQuality.overallConfidence === 'medium'
+                    ? isDark ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700'
+                    : isDark ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700'
+              }`}>
+                {profile.dataQuality.overallConfidence.charAt(0).toUpperCase() + profile.dataQuality.overallConfidence.slice(1)} Confidence
+              </span>
+            </div>
+          )}
+          <div className="grid gap-4 md:grid-cols-2">
+            {profile.dataQuality.strongDataAreas && profile.dataQuality.strongDataAreas.length > 0 && (
+              <div>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  Strong Data Areas
+                </p>
+                <ul className="space-y-1">
+                  {profile.dataQuality.strongDataAreas.map((area, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle className={`h-3 w-3 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                      <span className={`text-sm ${isDark ? 'text-white/70' : 'text-[#5C4A2A]/80'}`}>{area}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {profile.dataQuality.weakDataAreas && profile.dataQuality.weakDataAreas.length > 0 && (
+              <div>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                  Limited Data Areas
+                </p>
+                <ul className="space-y-1">
+                  {profile.dataQuality.weakDataAreas.map((area, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <XCircle className={`h-3 w-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                      <span className={`text-sm ${isDark ? 'text-white/70' : 'text-[#5C4A2A]/80'}`}>{area}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          {profile.dataQuality.recommendedFollowUp && profile.dataQuality.recommendedFollowUp.length > 0 && (
+            <div className={`mt-4 pt-4 border-t ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+              <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-white/50' : 'text-[#5C4A2A]/50'}`}>
+                Recommended Follow-up Research
+              </p>
+              <ul className="space-y-1">
+                {profile.dataQuality.recommendedFollowUp.map((item, i) => (
+                  <li key={i} className={`text-sm ${isDark ? 'text-white/60' : 'text-[#5C4A2A]/60'}`}>
+                    • {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
